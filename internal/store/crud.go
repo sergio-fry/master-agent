@@ -453,6 +453,53 @@ func (s *Store) ListRuns(projectID, taskID string) ([]Run, error) {
 	return out, nil
 }
 
+// RunFilter holds optional filters for listing runs.
+type RunFilter struct {
+	ProjectID string
+	TaskID    string
+	Status    string
+}
+
+// ListRunsFilter returns runs matching optional filters, newest first.
+func (s *Store) ListRunsFilter(f RunFilter) ([]Run, error) {
+	const cols = `id, task_id, project_id, started_at, finished_at, exit_code,
+			status, error_message, log_path`
+	query := `SELECT ` + cols + ` FROM runs WHERE 1=1`
+	var args []any
+	if f.ProjectID != "" {
+		query += ` AND project_id = ?`
+		args = append(args, f.ProjectID)
+	}
+	if f.TaskID != "" {
+		query += ` AND task_id = ?`
+		args = append(args, f.TaskID)
+	}
+	if f.Status != "" {
+		query += ` AND status = ?`
+		args = append(args, f.Status)
+	}
+	query += ` ORDER BY started_at DESC, id DESC`
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list runs filter: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Run
+	for rows.Next() {
+		r, err := scanRun(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan run: %w", err)
+		}
+		out = append(out, *r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list runs filter rows: %w", err)
+	}
+	return out, nil
+}
+
 type runScanner interface {
 	Scan(dest ...any) error
 }

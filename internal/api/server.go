@@ -60,6 +60,9 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/v1/projects/{id}/tasks", s.handleCreateProjectTask)
 	s.mux.HandleFunc("GET /api/v1/tasks/{id}", s.handleGetTask)
 	s.mux.HandleFunc("PATCH /api/v1/tasks/{id}", s.handlePatchTask)
+	s.mux.HandleFunc("GET /api/v1/runs", s.handleListRuns)
+	s.mux.HandleFunc("GET /api/v1/runs/{id}/log", s.handleGetRunLog)
+	s.mux.HandleFunc("GET /api/v1/runs/{id}", s.handleGetRun)
 	return s
 }
 
