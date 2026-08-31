@@ -24,6 +24,9 @@ const EnvToken = "MASTER_AGENT_TOKEN"
 type Config struct {
 	// Store is the SQLite store; required for handlers that touch persistence.
 	Store *store.Store
+	// SecretsDir is the base directory for uploaded SSH private keys (e.g. /secrets).
+	// Keys are stored at {SecretsDir}/projects/{projectID}/id_ed25519.
+	SecretsDir string
 	// Token, if non-empty, requires Authorization: Bearer <token> on /api/v1.
 	// Typically loaded from MASTER_AGENT_TOKEN via TokenFromEnv.
 	Token string
@@ -56,6 +59,8 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)
 	s.mux.HandleFunc("GET /api/v1/projects/{id}", s.handleGetProject)
 	s.mux.HandleFunc("PATCH /api/v1/projects/{id}", s.handlePatchProject)
+	s.mux.HandleFunc("GET /api/v1/projects/{id}/key", s.handleGetProjectKey)
+	s.mux.HandleFunc("POST /api/v1/projects/{id}/key", s.handleUploadProjectKey)
 	s.mux.HandleFunc("GET /api/v1/projects/{id}/tasks", s.handleListProjectTasks)
 	s.mux.HandleFunc("POST /api/v1/projects/{id}/tasks", s.handleCreateProjectTask)
 	s.mux.HandleFunc("GET /api/v1/tasks/{id}", s.handleGetTask)

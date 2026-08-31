@@ -1,3 +1,4 @@
+/master-agent
 /bin/
 /dist/
 *.exe
@@ -15,3 +16,4 @@ coverage.out
 /secrets/**
 !/secrets/.gitkeep
 /ssh/known_hosts
+
