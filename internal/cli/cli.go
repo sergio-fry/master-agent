@@ -72,5 +72,6 @@ func newRootCmd(opts Options) *cobra.Command {
 
 	root.AddCommand(newProjectCmd(opts, openStore))
 	root.AddCommand(newTaskCmd(opts, openStore))
+	root.AddCommand(newDaemonCmd(opts, openStore))
 	return root
 }
