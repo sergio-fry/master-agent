@@ -205,3 +205,69 @@ func TestTaskAddMissingRequiredFlags(t *testing.T) {
 	_, err := runCLI(t, dbPath, "task", "add", "--name", "x")
 	require.Error(t, err)
 }
+
+func TestRunListShowsSampleRuns(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	_, err := runCLI(t, dbPath,
+		"project", "add",
+		"--name", "my-app", "--path", "/p", "--ssh-host", "h",
+		"--ssh-user", "u", "--ssh-key", "/k",
+	)
+	require.NoError(t, err)
+	_, err = runCLI(t, dbPath,
+		"task", "add",
+		"--project", "my-app", "--name", "drain",
+		"--interval", "1800", "--command", "echo", "--prompt", "p",
+	)
+	require.NoError(t, err)
+	_, err = runCLI(t, dbPath,
+		"task", "add",
+		"--project", "my-app", "--name", "audit",
+		"--interval", "86400", "--command", "echo", "--prompt", "p",
+	)
+	require.NoError(t, err)
+
+	s, err := store.Open(dbPath)
+	require.NoError(t, err)
+	proj, err := s.GetProjectByName("my-app")
+	require.NoError(t, err)
+	drain, err := s.GetTaskByProjectAndName(proj.ID, "drain")
+	require.NoError(t, err)
+	audit, err := s.GetTaskByProjectAndName(proj.ID, "audit")
+	require.NoError(t, err)
+
+	finished := "2026-08-31T12:01:00Z"
+	exitOK := 0
+	exitFail := 1
+	errMsg := "remote exit 1"
+	require.NoError(t, s.InsertRun(&store.Run{
+		TaskID: drain.ID, ProjectID: proj.ID,
+		StartedAt: "2026-08-31T12:00:00Z", FinishedAt: &finished,
+		ExitCode: &exitOK, Status: store.RunStatusSuccess,
+	}))
+	require.NoError(t, s.InsertRun(&store.Run{
+		TaskID: audit.ID, ProjectID: proj.ID,
+		StartedAt: "2026-08-31T13:00:00Z", FinishedAt: &finished,
+		ExitCode: &exitFail, Status: store.RunStatusError, ErrorMessage: &errMsg,
+	}))
+	s.Close()
+
+	out, err := runCLI(t, dbPath, "run", "list", "--project", "my-app")
+	require.NoError(t, err)
+	assert.Contains(t, out, "STATUS")
+	assert.Contains(t, out, "success")
+	assert.Contains(t, out, "error")
+	assert.Contains(t, out, "remote exit 1")
+	assert.Contains(t, out, "2026-08-31T12:00:00Z")
+	assert.Contains(t, out, "2026-08-31T13:00:00Z")
+	assert.Contains(t, out, "0")
+	assert.Contains(t, out, "1")
+
+	filtered, err := runCLI(t, dbPath, "run", "list", "--project", "my-app", "--task", "drain")
+	require.NoError(t, err)
+	assert.Contains(t, filtered, "success")
+	assert.NotContains(t, filtered, "remote exit 1")
+
+	_, err = runCLI(t, dbPath, "run", "list")
+	require.Error(t, err)
+}

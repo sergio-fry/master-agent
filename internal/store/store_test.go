@@ -239,6 +239,58 @@ func TestRunInsertUpdate(t *testing.T) {
 	assert.Equal(t, logPath, *updated.LogPath)
 }
 
+func TestListRunsFiltersByProjectAndTask(t *testing.T) {
+	s, _ := openTempStore(t)
+
+	p1 := &Project{
+		Name: "app1", Path: "/p1", SSHHost: "h", SSHUser: "u",
+		SSHKeyPath: "/k", Enabled: true,
+	}
+	p2 := &Project{
+		Name: "app2", Path: "/p2", SSHHost: "h", SSHUser: "u",
+		SSHKeyPath: "/k", Enabled: true,
+	}
+	require.NoError(t, s.CreateProject(p1))
+	require.NoError(t, s.CreateProject(p2))
+
+	t1 := &Task{
+		ProjectID: p1.ID, Name: "drain", Prompt: "p", Command: "echo",
+		IntervalSeconds: 60, Enabled: true,
+	}
+	t2 := &Task{
+		ProjectID: p1.ID, Name: "audit", Prompt: "p", Command: "echo",
+		IntervalSeconds: 60, Enabled: true,
+	}
+	tOther := &Task{
+		ProjectID: p2.ID, Name: "other", Prompt: "p", Command: "echo",
+		IntervalSeconds: 60, Enabled: true,
+	}
+	require.NoError(t, s.CreateTask(t1))
+	require.NoError(t, s.CreateTask(t2))
+	require.NoError(t, s.CreateTask(tOther))
+
+	r1 := &Run{TaskID: t1.ID, ProjectID: p1.ID, StartedAt: "2026-08-31T12:00:00Z", Status: RunStatusSuccess}
+	r2 := &Run{TaskID: t2.ID, ProjectID: p1.ID, StartedAt: "2026-08-31T13:00:00Z", Status: RunStatusError}
+	r3 := &Run{TaskID: tOther.ID, ProjectID: p2.ID, StartedAt: "2026-08-31T14:00:00Z", Status: RunStatusRunning}
+	require.NoError(t, s.InsertRun(r1))
+	require.NoError(t, s.InsertRun(r2))
+	require.NoError(t, s.InsertRun(r3))
+
+	all, err := s.ListRuns(p1.ID, "")
+	require.NoError(t, err)
+	require.Len(t, all, 2)
+	assert.Equal(t, r2.ID, all[0].ID) // newest first
+	assert.Equal(t, r1.ID, all[1].ID)
+
+	filtered, err := s.ListRuns(p1.ID, t1.ID)
+	require.NoError(t, err)
+	require.Len(t, filtered, 1)
+	assert.Equal(t, r1.ID, filtered[0].ID)
+
+	_, err = s.ListRuns("", "")
+	require.Error(t, err)
+}
+
 func TestTaskRequiresExistingProject(t *testing.T) {
 	s, _ := openTempStore(t)
 	err := s.CreateTask(&Task{

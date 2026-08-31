@@ -400,6 +400,64 @@ func (s *Store) GetRun(id string) (*Run, error) {
 			status, error_message, log_path
 		FROM runs WHERE id = ?`, id)
 
+	r, err := scanRun(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get run: %w", err)
+	}
+	return r, nil
+}
+
+// ListRuns returns runs for a project, optionally filtered by task_id.
+// Results are ordered by started_at descending (newest first).
+func (s *Store) ListRuns(projectID, taskID string) ([]Run, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("list runs: project id is required")
+	}
+
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	const cols = `id, task_id, project_id, started_at, finished_at, exit_code,
+			status, error_message, log_path`
+	if taskID == "" {
+		rows, err = s.db.Query(`
+			SELECT `+cols+`
+			FROM runs WHERE project_id = ?
+			ORDER BY started_at DESC, id DESC`, projectID)
+	} else {
+		rows, err = s.db.Query(`
+			SELECT `+cols+`
+			FROM runs WHERE project_id = ? AND task_id = ?
+			ORDER BY started_at DESC, id DESC`, projectID, taskID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list runs: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Run
+	for rows.Next() {
+		r, err := scanRun(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan run: %w", err)
+		}
+		out = append(out, *r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list runs rows: %w", err)
+	}
+	return out, nil
+}
+
+type runScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanRun(row runScanner) (*Run, error) {
 	var r Run
 	var finished, errMsg, logPath sql.NullString
 	var exitCode sql.NullInt64
@@ -407,11 +465,8 @@ func (s *Store) GetRun(id string) (*Run, error) {
 		&r.ID, &r.TaskID, &r.ProjectID, &r.StartedAt,
 		&finished, &exitCode, &r.Status, &errMsg, &logPath,
 	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrNotFound
-	}
 	if err != nil {
-		return nil, fmt.Errorf("get run: %w", err)
+		return nil, err
 	}
 	r.FinishedAt = fromNullString(finished)
 	r.ExitCode = fromNullInt(exitCode)

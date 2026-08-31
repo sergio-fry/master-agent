@@ -87,6 +87,8 @@ docker compose run --rm master-agent project add \
   --ssh-host worker.example.com \
   --ssh-user worker \
   --ssh-key /secrets/projects/my-app/id_ed25519
+
+docker compose run --rm master-agent run list --project my-app
 ```
 
 Daemon is the default container command (`master-agent daemon`). Override `TICK_INTERVAL` in compose if needed.
