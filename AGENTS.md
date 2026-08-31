@@ -23,6 +23,11 @@ Project rules (`AGENTS.md`) and specs (`specs/`) must stay **accurate and short*
 - Orchestrator does not close backlog/Jira tasks; the remote CLI agent does, per prompt.
 - Details: `specs/01`–`05`.
 
+## Definition of Done / commits
+
+- Before committing: relevant **unit tests pass**; for orchestration/SSH changes, **acceptance tests pass** too (or are run in CI for that change).
+- Do not commit knowingly broken tests or untested behavior that the specs require.
+
 ## Testing (required)
 
 Write automated tests for new and changed behavior:
