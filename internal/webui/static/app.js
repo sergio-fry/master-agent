@@ -144,6 +144,7 @@
           '<td class="actions">' +
             '<button type="button" class="link btn-edit">Edit</button>' +
             '<button type="button" class="link btn-key">Key</button>' +
+            '<a class="link btn-tasks" href="/tasks.html?project_id=' + encodeURIComponent(p.id) + '">Tasks</a>' +
             '<button type="button" class="link btn-toggle">' + toggleLabel + '</button>' +
           '</td>' +
         '</tr>'

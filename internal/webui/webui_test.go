@@ -31,7 +31,7 @@ func TestHandlerServesStaticAssets(t *testing.T) {
 	ts := httptest.NewServer(Handler())
 	t.Cleanup(ts.Close)
 
-	for _, path := range []string{"/app.js", "/style.css"} {
+	for _, path := range []string{"/app.js", "/tasks.js", "/style.css", "/tasks.html"} {
 		t.Run(path, func(t *testing.T) {
 			resp, err := http.Get(ts.URL + path)
 			require.NoError(t, err)
@@ -88,6 +88,44 @@ func TestHandlerAppJSHasKeyUploadClient(t *testing.T) {
 	assert.Contains(t, s, "key_present")
 	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
 	assert.NotContains(t, s, "readAsText")
+}
+
+func TestHandlerServesTasksHTML(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/tasks.html")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "Tasks")
+	assert.Contains(t, s, "interval_seconds")
+	assert.Contains(t, s, "task-form")
+	assert.NotContains(t, s, "ssh_host")
+	assert.NotContains(t, s, "ssh_key_path")
+}
+
+func TestHandlerTasksJSHasAPIClient(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/tasks.js")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "/projects/")
+	assert.Contains(t, s, "/tasks/")
+	assert.Contains(t, s, "last_run_at")
+	assert.Contains(t, s, "next_run_at")
+	assert.Contains(t, s, "interval_seconds")
+	assert.NotContains(t, s, "ssh_host")
 }
 
 func TestHandlerIndexNeverShowsKeyMaterialHint(t *testing.T) {

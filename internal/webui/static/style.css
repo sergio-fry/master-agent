@@ -33,6 +33,20 @@ header h1 {
   font-size: 1.1rem;
 }
 
+nav {
+  display: flex;
+  gap: 1rem;
+}
+
+nav a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+nav a:hover {
+  text-decoration: underline;
+}
+
 nav .active {
   font-weight: 600;
 }
@@ -159,11 +173,13 @@ dialog::backdrop {
   background: rgba(0, 0, 0, 0.35);
 }
 
-#project-form {
+#project-form,
+#task-form {
   padding: 1.25rem;
 }
 
-#project-form h3 {
+#project-form h3,
+#task-form h3 {
   margin: 0 0 1rem;
 }
 
@@ -174,9 +190,30 @@ label {
   font-weight: 600;
 }
 
+.project-picker {
+  margin-bottom: 1rem;
+}
+
+.project-picker select {
+  display: block;
+  margin-top: 0.25rem;
+  min-width: 16rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--surface);
+}
+
+.timestamp {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 input[type="text"],
 input[type="password"],
-input[type="number"] {
+input[type="number"],
+textarea {
   width: 100%;
   margin-top: 0.25rem;
   padding: 0.45rem 0.55rem;
@@ -224,6 +261,11 @@ input[type="number"] {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.actions a.link {
+  font-size: inherit;
 }
 
 .key-cell { white-space: nowrap; }
