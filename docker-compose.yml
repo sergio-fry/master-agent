@@ -3,23 +3,35 @@
 #
 # Before first start:
 #   1. Put private keys under ./secrets/projects/<name>/ (e.g. id_ed25519)
+#      or upload via HTTP API when Web UI is enabled (requires rw mount below).
 #   2. Build known_hosts for StrictHostKeyChecking=yes, e.g.:
 #        ssh-keyscan -H worker.example.com >> ./ssh/known_hosts
 #   3. Register projects with ssh_key_path inside the container, e.g.
 #        /secrets/projects/my-app/id_ed25519
+#
+# HTTP API (Web UI milestone):
+#   - Port 8080 is published when daemon runs with --http-addr (default command).
+#   - Set MASTER_AGENT_TOKEN when exposing HTTP beyond a trusted network; clients
+#     must send Authorization: Bearer <token>.
+#   - ./secrets is mounted read-write so POST /api/v1/projects/{id}/key can store keys.
+#   - For scheduler-only (no API), omit --http-addr and mount ./secrets:ro instead.
 
 services:
   master-agent:
     build: .
     image: master-agent:local
     restart: unless-stopped
+    ports:
+      - "8080:8080"
     environment:
       TICK_INTERVAL: "30s"
+      # Uncomment when HTTP is reachable outside localhost:
+      # MASTER_AGENT_TOKEN: "change-me"
     volumes:
       # SQLite DB + run logs (default --db /data/master-agent.db)
       - ./data:/data
-      # Per-project private keys (read-only)
-      - ./secrets:/secrets:ro
+      # Per-project private keys (rw for API key upload)
+      - ./secrets:/secrets
       # Host key verification (OpenSSH GlobalKnownHostsFile)
       - ./ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
-    command: ["daemon"]
+    command: ["daemon", "--http-addr", "0.0.0.0:8080"]

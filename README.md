@@ -67,7 +67,7 @@ docker compose up -d
 | Host path | Container | Purpose |
 |-----------|-----------|---------|
 | `./data` | `/data` | SQLite (`--db` default `/data/master-agent.db`) and run logs |
-| `./secrets` | `/secrets` (ro) | Per-project private keys |
+| `./secrets` | `/secrets` | Per-project private keys (rw when using HTTP key upload) |
 | `./ssh/known_hosts` | `/etc/ssh/ssh_known_hosts` (ro) | Host keys for `StrictHostKeyChecking=yes` |
 
 Prepare SSH before enabling runs:
@@ -93,3 +93,28 @@ docker compose run --rm master-agent run list --project my-app
 ```
 
 Daemon is the default container command (`master-agent daemon`). Override `TICK_INTERVAL` in compose if needed.
+
+### HTTP API (`serve` / `daemon --http-addr`)
+
+The same JSON API under `/api/v1` can run standalone or alongside the scheduler:
+
+```bash
+# API only (default bind 127.0.0.1:8080)
+master-agent serve --db /data/master-agent.db
+
+# Scheduler + API in one process (Docker default)
+master-agent daemon --http-addr 0.0.0.0:8080
+```
+
+| Flag / env | Purpose |
+|------------|---------|
+| `serve --addr` / `HTTP_ADDR` | Listen address (default `127.0.0.1:8080`) |
+| `daemon --http-addr` / `HTTP_ADDR` | Optional in-process API bind (e.g. `0.0.0.0:8080` in Docker) |
+| `MASTER_AGENT_TOKEN` | When set, requires `Authorization: Bearer <token>` on `/api/v1` |
+
+Compose publishes `8080:8080`, mounts `./secrets` **read-write** for key upload, and documents `MASTER_AGENT_TOKEN` in comments. Health check: `GET /api/v1/status` → `{"ok":true}`.
+
+```bash
+curl -s http://127.0.0.1:8080/api/v1/status
+# with token: curl -H "Authorization: Bearer $MASTER_AGENT_TOKEN" ...
+```

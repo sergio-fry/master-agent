@@ -34,13 +34,13 @@
 └─────────────────────────────────────┘
          │ volumes
          ├─ /data              → SQLite, run logs
-         ├─ /secrets/...       → per-project private keys (ro)
+         ├─ /secrets/...       → per-project private keys (ro for daemon-only; rw when API uploads keys)
          └─ known_hosts        → host key verification
 ```
 
 **Dockerfile:** multi-stage build → Alpine runtime + `openssh-client` (см. `Dockerfile` в корне).
 
-**Compose / run:** `docker-compose.yml` — daemon как long-running service; volumes `/data`, `/secrets` (ro), `/etc/ssh/ssh_known_hosts` (ro). Ключи и DB снаружи образа.
+**Compose / run:** `docker-compose.yml` — daemon как long-running service с опциональным `--http-addr`; volumes `/data`, `/secrets` (rw при HTTP upload ключей), `/etc/ssh/ssh_known_hosts` (ro). Порт `8080`, `MASTER_AGENT_TOKEN` при доступе к API извне. Ключи и DB снаружи образа.
 
 ## What stays on the Worker
 

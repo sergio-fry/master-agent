@@ -23,6 +23,8 @@ const (
 
 func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Command {
 	var tickFlag string
+	var httpAddrFlag string
+	var secretsDir string
 
 	cmd := &cobra.Command{
 		Use:   "daemon",
@@ -42,6 +44,17 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
+			httpAddr := resolveHTTPAddr(httpAddrFlag)
+			if httpAddrFlag != "" || os.Getenv(envHTTPAddr) != "" {
+				apiSrv := newAPIServer(s, secretsDir)
+				printHTTPListening(opts.Stdout, httpAddr)
+				go func() {
+					if err := startHTTPServer(ctx, httpAddr, apiSrv.Handler(), opts.Stdout); err != nil && ctx.Err() == nil {
+						fmt.Fprintf(opts.Stderr, "http server error: %v\n", err)
+					}
+				}()
+			}
+
 			d := &scheduler.Daemon{
 				Store:  s,
 				Locks:  lock.NewManager(s, nil),
@@ -53,7 +66,7 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 			fmt.Fprintf(opts.Stdout, "daemon starting (tick=%s db=%s)\n", tick, dbPath)
 			err = d.Run(ctx)
 			if err != nil && ctx.Err() != nil {
-				fmt.Fprintf(opts.Stdout, "daemon stopped\n")
+				fmtStopped(opts.Stdout, "daemon")
 				return nil
 			}
 			return err
@@ -62,6 +75,10 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 
 	cmd.Flags().StringVar(&tickFlag, "tick-interval", "",
 		"scheduler poll interval (duration, e.g. 30s); overrides TICK_INTERVAL env; default 30s")
+	cmd.Flags().StringVar(&httpAddrFlag, "http-addr", "",
+		"optional HTTP listen address for API/UI in-process (e.g. 0.0.0.0:8080); overrides HTTP_ADDR env")
+	cmd.Flags().StringVar(&secretsDir, "secrets-dir", defaultSecretsDir,
+		"base directory for uploaded SSH private keys (used with --http-addr)")
 	return cmd
 }
 
