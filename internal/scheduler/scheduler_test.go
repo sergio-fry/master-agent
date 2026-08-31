@@ -3,8 +3,9 @@ package scheduler_test
 import (
 	"bytes"
 	"context"
-	"log"
+	"log/slog"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,16 +43,22 @@ func seed(t *testing.T, s *store.Store, nextRun *string, interval int) (store.Pr
 	return p, task
 }
 
-func newDaemon(s *store.Store, fake *runner.FakeRunner, now time.Time) *scheduler.Daemon {
+func newDaemonWithLog(s *store.Store, fake *runner.FakeRunner, now time.Time) (*scheduler.Daemon, *bytes.Buffer) {
 	var buf bytes.Buffer
-	return &scheduler.Daemon{
+	d := &scheduler.Daemon{
 		Store:  s,
 		Locks:  lock.NewManager(s, lock.FakeProcessChecker{}),
 		Runner: fake,
 		Config: scheduler.Config{TickInterval: time.Second},
 		Now:    func() time.Time { return now },
-		Logger: log.New(&buf, "", 0),
+		Logger: slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})),
 	}
+	return d, &buf
+}
+
+func newDaemon(s *store.Store, fake *runner.FakeRunner, now time.Time) *scheduler.Daemon {
+	d, _ := newDaemonWithLog(s, fake, now)
+	return d
 }
 
 func TestTickStartsDueTask(t *testing.T) {
@@ -208,4 +215,104 @@ func TestTickSuccessRunStatus(t *testing.T) {
 	require.NotNil(t, run.ExitCode)
 	assert.Equal(t, 0, *run.ExitCode)
 	require.NotNil(t, run.FinishedAt)
+}
+
+func TestTickStructuredRunLogFields(t *testing.T) {
+	s := openStore(t)
+	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-time.Minute).Format(time.RFC3339Nano)
+	_, _ = seed(t, s, &past, 60)
+
+	fake := &runner.FakeRunner{Result: runner.Result{ExitCode: 0, PID: 4242}}
+	d, logBuf := newDaemonWithLog(s, fake, now)
+	require.NoError(t, d.Tick(context.Background()))
+
+	line := logBuf.String()
+	assert.Contains(t, line, "level=INFO")
+	assert.Contains(t, line, `msg="run finished"`)
+	assert.Contains(t, line, "project=app")
+	assert.Contains(t, line, "task=drain")
+	assert.Contains(t, line, "ssh_host=host")
+	assert.Contains(t, line, "pid=4242")
+	assert.Contains(t, line, "duration_ms=")
+	assert.Contains(t, line, "exit_code=0")
+	assert.Contains(t, line, "status=success")
+}
+
+func TestTickStructuredRunLogErrorLevel(t *testing.T) {
+	s := openStore(t)
+	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-time.Minute).Format(time.RFC3339Nano)
+	_, _ = seed(t, s, &past, 60)
+
+	fake := &runner.FakeRunner{Result: runner.Result{ExitCode: 1, Stderr: "boom", PID: 7}}
+	d, logBuf := newDaemonWithLog(s, fake, now)
+	require.NoError(t, d.Tick(context.Background()))
+
+	line := logBuf.String()
+	assert.Contains(t, line, "level=ERROR")
+	assert.Contains(t, line, "exit_code=1")
+	assert.Contains(t, line, "status=error")
+	assert.Contains(t, line, "pid=7")
+	assert.Contains(t, line, "ssh_host=host")
+}
+
+func TestRunWaitsForInFlightOnCancel(t *testing.T) {
+	s := openStore(t)
+	now := time.Date(2026, 8, 31, 12, 0, 0, 0, time.UTC)
+	past := now.Add(-time.Minute).Format(time.RFC3339Nano)
+	_, _ = seed(t, s, &past, 60)
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	sawCancel := make(chan bool, 1)
+
+	fake := &runner.FakeRunner{
+		ResultFunc: func(ctx context.Context, _ store.Project, _ string) (runner.Result, error) {
+			close(started)
+			select {
+			case <-release:
+				sawCancel <- false
+				return runner.Result{ExitCode: 0, PID: 99}, nil
+			case <-ctx.Done():
+				sawCancel <- true
+				return runner.Result{ExitCode: -1}, ctx.Err()
+			}
+		},
+	}
+
+	d, logBuf := newDaemonWithLog(s, fake, now)
+	d.Config.TickInterval = time.Hour
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- d.Run(ctx) }()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("in-flight run did not start")
+	}
+
+	cancel()
+
+	select {
+	case err := <-done:
+		t.Fatalf("daemon exited before in-flight run finished: %v", err)
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	close(release)
+
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(2 * time.Second):
+		t.Fatal("daemon did not exit after in-flight run finished")
+	}
+
+	assert.False(t, <-sawCancel, "runner context must not be canceled by SIGTERM/shutdown")
+	require.Len(t, fake.Calls, 1)
+	assert.True(t, strings.Contains(logBuf.String(), "pid=99"))
+	assert.Contains(t, logBuf.String(), "daemon shutting down after in-flight work")
 }

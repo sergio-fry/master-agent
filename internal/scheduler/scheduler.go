@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"master-agent/internal/lock"
@@ -33,8 +33,8 @@ type Daemon struct {
 	// Now is the clock; nil uses time.Now.
 	Now func() time.Time
 
-	// Logger receives operational messages; nil uses the standard library logger.
-	Logger *log.Logger
+	// Logger receives operational messages; nil uses slog.Default().
+	Logger *slog.Logger
 }
 
 func (d *Daemon) now() time.Time {
@@ -44,12 +44,11 @@ func (d *Daemon) now() time.Time {
 	return time.Now()
 }
 
-func (d *Daemon) logf(format string, args ...any) {
+func (d *Daemon) logger() *slog.Logger {
 	if d.Logger != nil {
-		d.Logger.Printf(format, args...)
-		return
+		return d.Logger
 	}
-	log.Printf(format, args...)
+	return slog.Default()
 }
 
 func (d *Daemon) tickInterval() time.Duration {
@@ -60,19 +59,31 @@ func (d *Daemon) tickInterval() time.Duration {
 }
 
 // Run loops until ctx is cancelled: Tick then sleep TickInterval.
+// On cancel (e.g. SIGTERM), an in-flight SSH run is allowed to finish before return.
 func (d *Daemon) Run(ctx context.Context) error {
 	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
 		if err := d.Tick(ctx); err != nil {
 			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 				return err
 			}
-			d.logf("tick error: %v", err)
+			d.logger().Error("tick error", "err", err)
+		}
+
+		// Finish current tick (including in-flight run) before honoring shutdown.
+		if err := ctx.Err(); err != nil {
+			d.logger().Info("daemon shutting down after in-flight work")
+			return err
 		}
 
 		timer := time.NewTimer(d.tickInterval())
 		select {
 		case <-ctx.Done():
 			timer.Stop()
+			d.logger().Info("daemon shutting down")
 			return ctx.Err()
 		case <-timer.C:
 		}
@@ -145,10 +156,12 @@ func (d *Daemon) tryStart(ctx context.Context, task *store.Task) (started bool, 
 		return false, err
 	}
 
-	finishedAt := d.now()
+	startedAt := d.now()
+	finishedAt := startedAt
 	exitCode := 0
 	status := store.RunStatusSuccess
 	var errMsg *string
+	sshPID := 0
 
 	if expandErr != nil {
 		finishedAt = d.now()
@@ -157,8 +170,11 @@ func (d *Daemon) tryStart(ctx context.Context, task *store.Task) (started bool, 
 		msg := expandErr.Error()
 		errMsg = &msg
 	} else {
-		res, runErr := d.Runner.Run(ctx, *project, command)
+		// Detach from shutdown cancel so SIGTERM waits for the SSH session to exit.
+		runCtx := context.WithoutCancel(ctx)
+		res, runErr := d.Runner.Run(runCtx, *project, command)
 		finishedAt = d.now()
+		sshPID = res.PID
 		if runErr != nil {
 			exitCode = res.ExitCode
 			if exitCode == 0 {
@@ -194,6 +210,38 @@ func (d *Daemon) tryStart(ctx context.Context, task *store.Task) (started bool, 
 		return true, fmt.Errorf("schedule next run for task %s: %w", task.ID, err)
 	}
 
-	d.logf("run %s task=%s project=%s status=%s exit=%d", run.ID, task.Name, project.Name, status, exitCode)
+	d.logRun(project, task, run, sshPID, finishedAt.Sub(startedAt), exitCode, status, errMsg)
 	return true, nil
+}
+
+func (d *Daemon) logRun(
+	project *store.Project,
+	task *store.Task,
+	run *store.Run,
+	sshPID int,
+	duration time.Duration,
+	exitCode int,
+	status string,
+	errMsg *string,
+) {
+	attrs := []any{
+		"project", project.Name,
+		"task", task.Name,
+		"ssh_host", project.SSHHost,
+		"pid", sshPID,
+		"duration_ms", duration.Milliseconds(),
+		"exit_code", exitCode,
+		"status", status,
+		"run_id", run.ID,
+	}
+	if errMsg != nil && *errMsg != "" {
+		attrs = append(attrs, "error", *errMsg)
+	}
+
+	msg := "run finished"
+	if status == store.RunStatusError {
+		d.logger().Error(msg, attrs...)
+		return
+	}
+	d.logger().Info(msg, attrs...)
 }

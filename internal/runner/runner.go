@@ -18,6 +18,8 @@ type Result struct {
 	ExitCode int
 	Stdout   string
 	Stderr   string
+	// PID is the local OpenSSH client process id (0 if unknown / not started).
+	PID int
 }
 
 // Failed reports whether the daemon should record the run as error.

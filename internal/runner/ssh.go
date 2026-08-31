@@ -56,10 +56,21 @@ func (r *SSHRunner) Run(ctx context.Context, project store.Project, command stri
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	runErr := cmd.Run()
+	if err := cmd.Start(); err != nil {
+		res := Result{ExitCode: -1, Stderr: err.Error()}
+		return res, fmt.Errorf("ssh: %w", err)
+	}
+
+	pid := 0
+	if cmd.Process != nil {
+		pid = cmd.Process.Pid
+	}
+
+	runErr := cmd.Wait()
 	res := Result{
 		Stdout: stdout.String(),
 		Stderr: stderr.String(),
+		PID:    pid,
 	}
 
 	if runErr == nil {
@@ -74,7 +85,7 @@ func (r *SSHRunner) Run(ctx context.Context, project store.Project, command stri
 		return res, nil
 	}
 
-	// Failed to start ssh or context canceled before a process exit.
+	// Failed after start or context canceled before a process exit.
 	if res.Stderr == "" {
 		res.Stderr = runErr.Error()
 	}

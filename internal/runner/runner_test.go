@@ -198,6 +198,7 @@ esac
 		assert.Equal(t, "out-ok", res.Stdout)
 		assert.Equal(t, "err-ok", res.Stderr)
 		assert.False(t, res.Failed())
+		assert.Greater(t, res.PID, 0)
 	})
 
 	t.Run("nonzero_remote", func(t *testing.T) {
