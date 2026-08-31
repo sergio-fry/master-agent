@@ -1,0 +1,5 @@
+# Copy to known_hosts and fill with worker host keys before compose up:
+#   cp ssh/known_hosts.example ssh/known_hosts
+#   ssh-keyscan -H worker.example.com >> ssh/known_hosts
+#
+# Mounted read-only at /etc/ssh/ssh_known_hosts (StrictHostKeyChecking=yes).

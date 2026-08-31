@@ -1,0 +1,25 @@
+# Runtime volumes for SQLite, per-project SSH keys, and known_hosts.
+# Keys and known_hosts stay on the host — never baked into the image.
+#
+# Before first start:
+#   1. Put private keys under ./secrets/projects/<name>/ (e.g. id_ed25519)
+#   2. Build known_hosts for StrictHostKeyChecking=yes, e.g.:
+#        ssh-keyscan -H worker.example.com >> ./ssh/known_hosts
+#   3. Register projects with ssh_key_path inside the container, e.g.
+#        /secrets/projects/my-app/id_ed25519
+
+services:
+  master-agent:
+    build: .
+    image: master-agent:local
+    restart: unless-stopped
+    environment:
+      TICK_INTERVAL: "30s"
+    volumes:
+      # SQLite DB + run logs (default --db /data/master-agent.db)
+      - ./data:/data
+      # Per-project private keys (read-only)
+      - ./secrets:/secrets:ro
+      # Host key verification (OpenSSH GlobalKnownHostsFile)
+      - ./ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
+    command: ["daemon"]

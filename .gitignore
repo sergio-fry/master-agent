@@ -8,3 +8,10 @@ coverage.out
 .vscode/
 *.db
 *.db-journal
+
+# Runtime mounts (keep directory placeholders; never commit private keys)
+/data/*
+!/data/.gitkeep
+/secrets/**
+!/secrets/.gitkeep
+/ssh/known_hosts

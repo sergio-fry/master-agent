@@ -35,3 +35,42 @@ go test ./...
 ```
 
 Binary entrypoint: `cmd/master-agent`. Package layout under `internal/` (`cli`, `store`, `placeholder`, `scheduler`, `runner`, …).
+
+## Docker
+
+Multi-stage image: Go binary + `openssh-client` only. No Cursor, MCP, or backlog in the image. SSH private keys and `known_hosts` are **runtime mounts**, never `COPY`'d.
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+### Volumes (`docker-compose.yml`)
+
+| Host path | Container | Purpose |
+|-----------|-----------|---------|
+| `./data` | `/data` | SQLite (`--db` default `/data/master-agent.db`) and run logs |
+| `./secrets` | `/secrets` (ro) | Per-project private keys |
+| `./ssh/known_hosts` | `/etc/ssh/ssh_known_hosts` (ro) | Host keys for `StrictHostKeyChecking=yes` |
+
+Prepare SSH before enabling runs:
+
+```bash
+mkdir -p secrets/projects/my-app
+# install private key → secrets/projects/my-app/id_ed25519 (mode 600)
+cp ssh/known_hosts.example ssh/known_hosts
+ssh-keyscan -H worker.example.com >> ssh/known_hosts
+```
+
+Register a project with the **in-container** key path, e.g. `/secrets/projects/my-app/id_ed25519`.
+
+```bash
+docker compose run --rm master-agent project add \
+  --name my-app \
+  --path /home/worker/projects/my-app \
+  --ssh-host worker.example.com \
+  --ssh-user worker \
+  --ssh-key /secrets/projects/my-app/id_ed25519
+```
+
+Daemon is the default container command (`master-agent daemon`). Override `TICK_INTERVAL` in compose if needed.

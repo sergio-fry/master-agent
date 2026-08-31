@@ -38,9 +38,9 @@
          └─ known_hosts        → host key verification
 ```
 
-**Dockerfile (концепт):** multi-stage build → runtime на minimal base (distroless/alpine) + `openssh-client`.
+**Dockerfile:** multi-stage build → Alpine runtime + `openssh-client` (см. `Dockerfile` в корне).
 
-**Compose / run:** daemon как long-running service; ключи и DB снаружи образа.
+**Compose / run:** `docker-compose.yml` — daemon как long-running service; volumes `/data`, `/secrets` (ro), `/etc/ssh/ssh_known_hosts` (ro). Ключи и DB снаружи образа.
 
 ## What stays on the Worker
 
