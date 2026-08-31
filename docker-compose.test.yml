@@ -1,0 +1,45 @@
+# Acceptance harness: master-agent + sshd worker (stub remote commands only).
+# Keys and known_hosts are test fixtures under test/fixtures/ssh/ (not production secrets).
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d --build
+#   go test -tags=acceptance ./test/acceptance/...
+#   docker compose -f docker-compose.test.yml down -v
+
+name: master-agent-acceptance
+
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: test/worker/Dockerfile
+    image: master-agent-test-worker:local
+    hostname: worker
+    ports:
+      # Optional host-side debug; production path uses the compose network name "worker".
+      - "2222:22"
+    volumes:
+      # Shared workspace so tests can assert stub side effects (touch/echo files).
+      - worker-workspace:/home/worker/workspace
+
+  master-agent:
+    build: .
+    image: master-agent:local
+    depends_on:
+      - worker
+    environment:
+      TICK_INTERVAL: "1s"
+    volumes:
+      - acceptance-data:/data
+      - ./test/fixtures/ssh/id_ed25519:/secrets/id_ed25519:ro
+      - ./test/fixtures/ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
+      - ./test/acceptance/master-entrypoint.sh:/entrypoint.sh:ro
+      - worker-workspace:/workspace:ro
+    # Idle so acceptance tests can exec CLI / ssh smoke; scenarios start daemon as needed.
+    # Entrypoint copies the key to /secrets/runtime/id_ed25519 (mode 600) for OpenSSH.
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    command: ["sleep", "infinity"]
+
+volumes:
+  acceptance-data:
+  worker-workspace:

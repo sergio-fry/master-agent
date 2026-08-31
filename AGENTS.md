@@ -44,6 +44,8 @@ Rules:
 - Cover externally visible behavior from [specs/04-acceptance-criteria.md](specs/04-acceptance-criteria.md) and [specs/06-testing.md](specs/06-testing.md).
 - Unit tests run always in CI; acceptance may be separate job/tag but must exist for orchestration features.
 
+Acceptance harness: `docker-compose.test.yml` + `go test -tags=acceptance ./test/acceptance/...` (TestMain starts/stops compose; set `ACCEPTANCE_SKIP_COMPOSE=1` if compose is already up). Details: [README.md](README.md), [specs/06-testing.md](specs/06-testing.md).
+
 ## Stack pointers
 
 - Go, SQLite, OpenSSH client, Docker — [specs/05-tech-stack.md](specs/05-tech-stack.md).

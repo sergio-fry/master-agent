@@ -36,6 +36,22 @@ go test ./...
 
 Binary entrypoint: `cmd/master-agent`. Package layout under `internal/` (`cli`, `store`, `placeholder`, `scheduler`, `runner`, …).
 
+### Acceptance (E2E)
+
+Docker Compose harness (`docker-compose.test.yml`): `master-agent` + `sshd` worker, test keys under `test/fixtures/ssh/`. Remote commands are stubs only (`touch` / `echo` / `exit 1` / `sleep`) — no Cursor, backlog CLI, or MCP.
+
+```bash
+# TestMain brings compose up/down automatically:
+go test -tags=acceptance ./test/acceptance/...
+
+# Or manage compose yourself, then skip lifecycle in tests:
+docker compose -f docker-compose.test.yml up -d --build
+ACCEPTANCE_SKIP_COMPOSE=1 go test -tags=acceptance ./test/acceptance/...
+docker compose -f docker-compose.test.yml down -v
+```
+
+See [specs/06-testing.md](specs/06-testing.md).
+
 ## Docker
 
 Multi-stage image: Go binary + `openssh-client` only. No Cursor, MCP, or backlog in the image. SSH private keys and `known_hosts` are **runtime mounts**, never `COPY`'d.

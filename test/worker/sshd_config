@@ -1,0 +1,16 @@
+# Minimal sshd for acceptance worker (key auth only, stub commands).
+Port 22
+Protocol 2
+HostKey /etc/ssh/ssh_host_ed25519_key
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+ChallengeResponseAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+AllowTcpForwarding no
+X11Forwarding no
+AllowAgentForwarding no
+PrintMotd no
+Subsystem sftp /usr/lib/ssh/sftp-server
+PidFile /run/sshd.pid
