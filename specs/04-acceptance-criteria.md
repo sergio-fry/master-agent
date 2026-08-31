@@ -60,11 +60,18 @@
 - [ ] Acceptance E2E через Docker Compose + sshd со stub-командами (`touch` / `exit 1`).
 - [ ] Acceptance не зависит от Cursor/AI.
 
+## Web UI (milestone — see [07-web-ui.md](./07-web-ui.md))
+
+- [ ] HTTP API for projects, tasks, runs, log tail, key upload (no key material in responses).
+- [ ] `serve` (and/or daemon `--http-addr`) serves API + UI.
+- [ ] UI: manage projects/tasks, upload keys, browse runs/logs.
+- [ ] API/UI acceptance tests without Cursor/AI.
+
 ## Explicitly Out of Scope
 
 - [ ] Очередь / priority queue в master-agent.
 - [ ] Конфиг MCP/skills в репозитории оркестратора.
-- [ ] Web UI.
+- [ ] Multi-user OAuth/RBAC; Cursor transcript UI.
 - [ ] Multi-agent parallel runs (post-MVP).
 - [ ] Локальный (non-SSH) runner.
 

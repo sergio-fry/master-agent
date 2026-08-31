@@ -55,13 +55,23 @@
 |-------|--------|
 | Unit | `testing` + testify; fake Runner |
 | Acceptance | Docker Compose (app + sshd) + `go test` (acceptance tag) |
+| Web UI / API | `net/http` tests + acceptance HTTP client ([07-web-ui.md](./07-web-ui.md)) |
 
 Подробности и правила: [06-testing.md](./06-testing.md), также `AGENTS.md`.
 
-## Out of stack (MVP)
+## Web UI (post-MVP milestone)
+
+| Choice | Detail |
+|--------|--------|
+| API | Go `net/http` (or chi/echo — keep thin) JSON `/api/v1` |
+| UI | Embedded static or server-rendered from the same binary |
+| Process | `master-agent serve` and/or `daemon --http-addr` |
+| Auth | Optional Bearer token (`MASTER_AGENT_TOKEN`) |
+
+## Out of stack
 
 - Postgres / Redis
-- HTTP API / Web UI
 - Kubernetes-specific controllers (plain Docker/Compose достаточно)
 - Agent SDKs внутри оркестратора
-- Gherkin/godog, browser E2E
+- Gherkin/godog; full browser E2E suite (optional smoke only)
+- OAuth / multi-tenant IAM

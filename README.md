@@ -15,6 +15,7 @@
 | [specs/04-acceptance-criteria.md](specs/04-acceptance-criteria.md) | MVP checklist |
 | [specs/05-tech-stack.md](specs/05-tech-stack.md) | Go, Docker, SQLite, SSH |
 | [specs/06-testing.md](specs/06-testing.md) | Unit + acceptance E2E |
+| [specs/07-web-ui.md](specs/07-web-ui.md) | HTTP API + Web UI |
 | [AGENTS.md](AGENTS.md) | Правила для агентов (актуальность, тесты, backlog) |
 
 ## Кратко

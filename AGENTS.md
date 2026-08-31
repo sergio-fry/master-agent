@@ -21,7 +21,8 @@ Project rules (`AGENTS.md`) and specs (`specs/`) must stay **accurate and short*
 - **Project** = remote path + SSH host/user/key.
 - **Task** = schedule + command + prompt (no SSH fields).
 - Orchestrator does not close backlog/Jira tasks; the remote CLI agent does, per prompt.
-- Details: `specs/01`–`05`.
+- Web UI / HTTP API (post-MVP): [specs/07-web-ui.md](specs/07-web-ui.md).
+- Details: `specs/01`–`07`.
 
 ## Definition of Done / commits
 
@@ -50,6 +51,7 @@ Acceptance harness: `docker-compose.test.yml` + `go test -tags=acceptance ./test
 
 - Go, SQLite, OpenSSH client, Docker — [specs/05-tech-stack.md](specs/05-tech-stack.md).
 - Testing detail — [specs/06-testing.md](specs/06-testing.md).
+- Web UI — [specs/07-web-ui.md](specs/07-web-ui.md).
 
 <!-- BACKLOG.MD GUIDELINES START -->
 <!-- backlog.md-instructions-version: 1.50.1 -->
