@@ -32,7 +32,7 @@ func TestStartHTTPServerServesStatus(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = startHTTPServer(ctx, addr, apiSrv.Handler(), io.Discard)
+		_ = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), io.Discard)
 	}()
 
 	require.Eventually(t, func() bool {
@@ -66,7 +66,7 @@ func TestDaemonHTTPAddrDoesNotBlockTick(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		_ = startHTTPServer(ctx, addr, apiSrv.Handler(), io.Discard)
+		_ = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), io.Discard)
 	}()
 
 	d := &scheduler.Daemon{
@@ -83,12 +83,39 @@ func TestDaemonHTTPAddrDoesNotBlockTick(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
+func TestStartHTTPServerServesUI(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test.db")
+	s, err := store.Open(dbPath)
+	require.NoError(t, err)
+	defer s.Close()
+
+	addr := freeTCPAddr(t)
+	apiSrv := newAPIServer(s, t.TempDir())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		_ = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), io.Discard)
+	}()
+
+	require.Eventually(t, func() bool {
+		resp, err := http.Get("http://" + addr + "/")
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 3*time.Second, 25*time.Millisecond)
+}
+
 func TestServeCommandRegistered(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
 	out, err := runCLI(t, dbPath, "serve", "--help")
 	require.NoError(t, err)
 	assert.Contains(t, out, "--addr")
 	assert.Contains(t, out, "HTTP API")
+	assert.Contains(t, out, "Web UI")
 }
 
 func TestDaemonHTTPAddrFlagRegistered(t *testing.T) {

@@ -19,7 +19,7 @@ func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Co
 
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Run the HTTP API (and future Web UI) against the SQLite store",
+		Short: "Run the HTTP API and Web UI against the SQLite store",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr := resolveHTTPAddr(addrFlag)
 
@@ -34,7 +34,7 @@ func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Co
 
 			apiSrv := newAPIServer(s, secretsDir)
 			printHTTPListening(opts.Stdout, addr)
-			err = startHTTPServer(ctx, addr, apiSrv.Handler(), opts.Stdout)
+			err = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), opts.Stdout)
 			if err != nil && ctx.Err() != nil {
 				fmtStopped(opts.Stdout, "serve")
 				return nil

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>master-agent — Projects</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>master-agent</h1>
+    <nav><span class="active">Projects</span></nav>
+    <div id="auth-panel" class="auth-panel hidden">
+      <label for="token-input">API token</label>
+      <input id="token-input" type="password" placeholder="Bearer token" autocomplete="off">
+      <button type="button" id="token-save">Save</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <h2>Projects</h2>
+      <button type="button" id="btn-new" class="primary">New project</button>
+    </section>
+
+    <div id="flash" class="flash hidden" role="alert"></div>
+
+    <table id="projects-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Path</th>
+          <th>SSH</th>
+          <th>Enabled</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="projects-body">
+        <tr><td colspan="5" class="muted">Loading…</td></tr>
+      </tbody>
+    </table>
+
+    <dialog id="project-dialog">
+      <form id="project-form" method="dialog">
+        <h3 id="dialog-title">New project</h3>
+        <input type="hidden" id="project-id">
+
+        <label for="name">Name</label>
+        <input id="name" name="name" required>
+
+        <label for="path">Remote path</label>
+        <input id="path" name="path" required placeholder="/home/user/project">
+
+        <div class="row">
+          <div>
+            <label for="ssh_host">SSH host</label>
+            <input id="ssh_host" name="ssh_host" required>
+          </div>
+          <div>
+            <label for="ssh_port">Port</label>
+            <input id="ssh_port" name="ssh_port" type="number" min="1" value="22">
+          </div>
+        </div>
+
+        <label for="ssh_user">SSH user</label>
+        <input id="ssh_user" name="ssh_user" required>
+
+        <label for="ssh_key_path">SSH key path</label>
+        <input id="ssh_key_path" name="ssh_key_path" required placeholder="/secrets/projects/{id}/id_ed25519">
+        <p class="hint">Typically <code>/secrets/projects/&lt;id&gt;/id_ed25519</code> after key upload.</p>
+
+        <label class="checkbox">
+          <input id="enabled" name="enabled" type="checkbox" checked>
+          Enabled
+        </label>
+
+        <div id="form-error" class="form-error hidden"></div>
+
+        <div class="dialog-actions">
+          <button type="button" id="btn-cancel">Cancel</button>
+          <button type="submit" class="primary" id="btn-save">Save</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

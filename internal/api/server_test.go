@@ -54,12 +54,28 @@ func TestAuthRequiresBearerWhenTokenSet(t *testing.T) {
 	const token = "secret-token"
 	ts := startTestServer(t, token)
 
-	t.Run("missing auth", func(t *testing.T) {
+	t.Run("missing auth on API", func(t *testing.T) {
 		resp, err := http.Get(ts.URL + "/api/v1/status")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 		assertJSONError(t, resp, "unauthorized")
+	})
+
+	t.Run("static UI without auth", func(t *testing.T) {
+		st := openTempStore(t)
+		srv := New(Config{
+			Store:  st,
+			Token:  token,
+			Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		})
+		uiTS := httptest.NewServer(srv.HandlerWithUI(testUIHandler()))
+		t.Cleanup(uiTS.Close)
+
+		resp, err := http.Get(uiTS.URL + "/")
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
 	t.Run("wrong token", func(t *testing.T) {
@@ -127,6 +143,36 @@ func TestRequestIDPropagated(t *testing.T) {
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, "client-req-1", resp.Header.Get("X-Request-ID"))
+}
+
+func testUIHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ui"))
+	})
+}
+
+func TestHandlerWithUIServesAPIAndStatic(t *testing.T) {
+	st := openTempStore(t)
+	srv := New(Config{
+		Store:  st,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	ts := httptest.NewServer(srv.HandlerWithUI(testUIHandler()))
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/api/v1/status")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	resp, err = http.Get(ts.URL + "/")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Equal(t, "ui", string(body))
 }
 
 func assertJSONError(t *testing.T, resp *http.Response, want string) {

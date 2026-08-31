@@ -49,7 +49,7 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 				apiSrv := newAPIServer(s, secretsDir)
 				printHTTPListening(opts.Stdout, httpAddr)
 				go func() {
-					if err := startHTTPServer(ctx, httpAddr, apiSrv.Handler(), opts.Stdout); err != nil && ctx.Err() == nil {
+					if err := startHTTPServer(ctx, httpAddr, newHTTPHandler(apiSrv), opts.Stdout); err != nil && ctx.Err() == nil {
 						fmt.Fprintf(opts.Stderr, "http server error: %v\n", err)
 					}
 				}()

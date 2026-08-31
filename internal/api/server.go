@@ -72,8 +72,22 @@ func New(cfg Config) *Server {
 }
 
 // Handler returns the HTTP handler with request-ID, auth, and logging middleware.
+// Only /api/v1 routes are registered (no embedded UI).
 func (s *Server) Handler() http.Handler {
-	var h http.Handler = s.mux
+	return s.wrapMiddleware(s.mux)
+}
+
+// HandlerWithUI returns the API plus embedded static Web UI at /.
+func (s *Server) HandlerWithUI(ui http.Handler) http.Handler {
+	root := http.NewServeMux()
+	root.Handle("/api/", s.mux)
+	if ui != nil {
+		root.Handle("/", ui)
+	}
+	return s.wrapMiddleware(root)
+}
+
+func (s *Server) wrapMiddleware(h http.Handler) http.Handler {
 	h = withAuth(s.cfg.Token, h)
 	h = withLogging(s.cfg.Logger, h)
 	h = withRequestID(h)

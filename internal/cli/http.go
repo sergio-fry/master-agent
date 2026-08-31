@@ -11,6 +11,7 @@ import (
 
 	"master-agent/internal/api"
 	"master-agent/internal/store"
+	"master-agent/internal/webui"
 )
 
 const (
@@ -37,6 +38,10 @@ func newAPIServer(s *store.Store, secretsDir string) *api.Server {
 		Token:      api.TokenFromEnv(),
 		Logger:     slog.Default(),
 	})
+}
+
+func newHTTPHandler(apiSrv *api.Server) http.Handler {
+	return apiSrv.HandlerWithUI(webui.Handler())
 }
 
 // startHTTPServer listens on addr until ctx is cancelled, then shuts down gracefully.
