@@ -15,12 +15,15 @@ import (
 )
 
 const (
-	composeFile   = "docker-compose.test.yml"
+	composeFile    = "docker-compose.test.yml"
 	composeProject = "master-agent-acceptance"
-	workerUser    = "worker"
-	workerHost    = "worker"
-	keyPath       = "/secrets/runtime/id_ed25519"
-	workspacePath = "/home/worker/workspace"
+	workerUser     = "worker"
+	workerHost     = "worker"
+	workerBHost    = "worker-b"
+	keyPath        = "/secrets/runtime/id_ed25519"
+	keyPathB       = "/secrets/runtime/id_ed25519_b"
+	workspacePath  = "/home/worker/workspace"
+	containerDB    = "/data/master-agent.db"
 )
 
 // repoRoot returns the repository root (directory containing docker-compose.test.yml).
@@ -56,19 +59,19 @@ func runCompose(t testing.TB, root string, args ...string) string {
 	return buf.String()
 }
 
-func waitForSSH(t testing.TB, root string, timeout time.Duration) {
+func waitForSSHHost(t testing.TB, root, host, identity string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	var last string
 	for time.Now().Before(deadline) {
 		cmd := composeCmd(root, "exec", "-T", "master-agent",
 			"ssh",
-			"-i", keyPath,
+			"-i", identity,
 			"-o", "BatchMode=yes",
 			"-o", "IdentitiesOnly=yes",
 			"-o", "StrictHostKeyChecking=yes",
 			"-o", "ConnectTimeout=2",
-			fmt.Sprintf("%s@%s", workerUser, workerHost),
+			fmt.Sprintf("%s@%s", workerUser, host),
 			"echo ready",
 		)
 		var buf bytes.Buffer
@@ -80,7 +83,18 @@ func waitForSSH(t testing.TB, root string, timeout time.Duration) {
 		last = buf.String()
 		time.Sleep(500 * time.Millisecond)
 	}
-	t.Fatalf("SSH to worker not ready within %s; last output:\n%s", timeout, last)
+	t.Fatalf("SSH to %s not ready within %s; last output:\n%s", host, timeout, last)
+}
+
+func waitForSSH(t testing.TB, root string, timeout time.Duration) {
+	t.Helper()
+	waitForSSHHost(t, root, workerHost, keyPath, timeout)
+}
+
+func waitForAllWorkers(t testing.TB, root string, timeout time.Duration) {
+	t.Helper()
+	waitForSSHHost(t, root, workerHost, keyPath, timeout)
+	waitForSSHHost(t, root, workerBHost, keyPathB, timeout)
 }
 
 func execOnMaster(t testing.TB, root string, args ...string) string {
@@ -95,16 +109,45 @@ func shellQuote(s string) string {
 
 func execSSH(t testing.TB, root string, remoteCmd string) string {
 	t.Helper()
+	return execSSHHost(t, root, workerHost, keyPath, remoteCmd)
+}
+
+func execSSHHost(t testing.TB, root, host, identity, remoteCmd string) string {
+	t.Helper()
 	// Match production SSHRunner: single remote argv "bash -lc '<inner>'".
 	return execOnMaster(t, root,
 		"ssh",
-		"-i", keyPath,
+		"-i", identity,
 		"-o", "BatchMode=yes",
 		"-o", "IdentitiesOnly=yes",
 		"-o", "StrictHostKeyChecking=yes",
-		fmt.Sprintf("%s@%s", workerUser, workerHost),
+		fmt.Sprintf("%s@%s", workerUser, host),
 		"bash -lc "+shellQuote(remoteCmd),
 	)
+}
+
+func installSqliteCLI(root string) error {
+	cmd := composeCmd(root, "exec", "-T", "master-agent", "sh", "-c",
+		"command -v sqlite3 >/dev/null || apk add --no-cache sqlite")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("install sqlite3: %w\n%s", err, buf.String())
+	}
+	return nil
+}
+
+func resetAcceptanceVolume(root string) error {
+	cmd := composeCmd(root, "exec", "-T", "master-agent", "sh", "-c",
+		"rm -f /data/master-agent.db /data/master-agent.db-wal /data/master-agent.db-shm /data/master-agent.db-journal")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("reset db volume: %w\n%s", err, buf.String())
+	}
+	return nil
 }
 
 func TestMain(m *testing.M) {
@@ -125,6 +168,12 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	if err := installSqliteCLI(root); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		_ = composeCmd(root, "down", "-v", "--remove-orphans").Run()
+		os.Exit(1)
+	}
+
 	code := m.Run()
 
 	down := composeCmd(root, "down", "-v", "--remove-orphans")
@@ -137,7 +186,7 @@ func TestMain(m *testing.M) {
 
 func TestHarnessComposeAndKeySSH(t *testing.T) {
 	root := repoRoot(t)
-	waitForSSH(t, root, 60*time.Second)
+	waitForAllWorkers(t, root, 60*time.Second)
 
 	out := execSSH(t, root, "whoami && hostname")
 	if !strings.Contains(out, workerUser) {
@@ -145,6 +194,14 @@ func TestHarnessComposeAndKeySSH(t *testing.T) {
 	}
 	if !strings.Contains(out, "worker") {
 		t.Fatalf("expected hostname to contain worker, got %q", out)
+	}
+
+	outB := execSSHHost(t, root, workerBHost, keyPathB, "whoami && hostname")
+	if !strings.Contains(outB, workerUser) {
+		t.Fatalf("worker-b whoami: got %q", outB)
+	}
+	if !strings.Contains(outB, "worker-b") {
+		t.Fatalf("expected hostname worker-b, got %q", outB)
 	}
 }
 
@@ -185,7 +242,6 @@ func TestHarnessStubRemoteCommands(t *testing.T) {
 		t.Fatalf("expected non-zero exit from exit 1 stub, got %v", err)
 	}
 
-	// sleep stub returns promptly after remote sleep completes
 	start := time.Now()
 	execSSH(t, root, "sleep 1")
 	if time.Since(start) < time.Second {
@@ -199,7 +255,6 @@ func TestHarnessMasterAgentBinaryPresent(t *testing.T) {
 	if !strings.Contains(out, "Schedule SSH runs") && !strings.Contains(out, "daemon") {
 		t.Fatalf("master-agent --help unexpected:\n%s", out)
 	}
-	// Ensure openssh client exists (production path)
 	which := execOnMaster(t, root, "which", "ssh")
 	if which == "" {
 		t.Fatal("ssh client missing in master-agent image")

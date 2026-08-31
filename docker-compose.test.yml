@@ -1,4 +1,4 @@
-# Acceptance harness: master-agent + sshd worker (stub remote commands only).
+# Acceptance harness: master-agent + sshd workers (stub remote commands only).
 # Keys and known_hosts are test fixtures under test/fixtures/ssh/ (not production secrets).
 #
 # Usage:
@@ -13,6 +13,8 @@ services:
     build:
       context: .
       dockerfile: test/worker/Dockerfile
+      args:
+        AUTH_KEYS: test/fixtures/ssh/id_ed25519.pub
     image: master-agent-test-worker:local
     hostname: worker
     ports:
@@ -22,24 +24,39 @@ services:
       # Shared workspace so tests can assert stub side effects (touch/echo files).
       - worker-workspace:/home/worker/workspace
 
+  worker-b:
+    build:
+      context: .
+      dockerfile: test/worker/Dockerfile
+      args:
+        AUTH_KEYS: test/fixtures/ssh/id_ed25519_b.pub
+    image: master-agent-test-worker-b:local
+    hostname: worker-b
+    volumes:
+      - worker-b-workspace:/home/worker/workspace
+
   master-agent:
     build: .
     image: master-agent:local
     depends_on:
       - worker
+      - worker-b
     environment:
       TICK_INTERVAL: "1s"
     volumes:
       - acceptance-data:/data
       - ./test/fixtures/ssh/id_ed25519:/secrets/id_ed25519:ro
+      - ./test/fixtures/ssh/id_ed25519_b:/secrets/id_ed25519_b:ro
       - ./test/fixtures/ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
       - ./test/acceptance/master-entrypoint.sh:/entrypoint.sh:ro
       - worker-workspace:/workspace:ro
+      - worker-b-workspace:/workspace-b:ro
     # Idle so acceptance tests can exec CLI / ssh smoke; scenarios start daemon as needed.
-    # Entrypoint copies the key to /secrets/runtime/id_ed25519 (mode 600) for OpenSSH.
+    # Entrypoint copies keys to /secrets/runtime/* (mode 600) for OpenSSH.
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     command: ["sleep", "infinity"]
 
 volumes:
   acceptance-data:
   worker-workspace:
+  worker-b-workspace:

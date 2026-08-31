@@ -2,6 +2,8 @@
 # No Cursor, backlog, or MCP — remote commands are touch/echo/exit/sleep.
 FROM alpine:3.22
 
+ARG AUTH_KEYS=test/fixtures/ssh/id_ed25519.pub
+
 RUN apk add --no-cache openssh-server bash \
 	&& adduser -D -h /home/worker -s /bin/bash worker \
 	&& passwd -u worker \
@@ -9,7 +11,7 @@ RUN apk add --no-cache openssh-server bash \
 	&& chown -R worker:worker /home/worker
 
 COPY test/fixtures/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key
-COPY test/fixtures/ssh/id_ed25519.pub /home/worker/.ssh/authorized_keys
+COPY ${AUTH_KEYS} /home/worker/.ssh/authorized_keys
 COPY test/worker/sshd_config /etc/ssh/sshd_config
 COPY test/worker/entrypoint.sh /entrypoint.sh
 

@@ -40,6 +40,14 @@ func Open(path string) (*Store, error) {
 		_ = db.Close()
 		return nil, fmt.Errorf("enable foreign_keys: %w", err)
 	}
+	if _, err := db.Exec(`PRAGMA busy_timeout = 5000`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("set busy_timeout: %w", err)
+	}
+	if _, err := db.Exec(`PRAGMA journal_mode = WAL`); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("enable WAL: %w", err)
+	}
 
 	s := &Store{db: db}
 	if err := s.migrate(); err != nil {
