@@ -309,3 +309,95 @@ input[type="file"] {
   margin-top: 0.25rem;
   font: inherit;
 }
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filter-field label {
+  display: block;
+  margin-top: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.filter-field select {
+  display: block;
+  margin-top: 0.25rem;
+  min-width: 12rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  background: var(--surface);
+}
+
+.badge.running {
+  background: #ddf4ff;
+  color: #0969da;
+}
+
+.badge.neutral {
+  background: #eaeef2;
+  color: var(--muted);
+}
+
+#run-detail {
+  padding: 1.25rem;
+  max-width: 48rem;
+}
+
+#run-detail h3 {
+  margin: 0 0 1rem;
+}
+
+#run-detail h4 {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.run-meta {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
+
+.run-meta dt {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.run-meta dd {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.detail-error.has-error {
+  color: var(--danger);
+  word-break: break-word;
+}
+
+.log-viewer {
+  margin: 0;
+  padding: 0.75rem;
+  background: #0d1117;
+  color: #e6edf3;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  max-height: 20rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-viewer.muted {
+  background: #f3f4f6;
+  color: var(--muted);
+}

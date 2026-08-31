@@ -31,7 +31,7 @@ func TestHandlerServesStaticAssets(t *testing.T) {
 	ts := httptest.NewServer(Handler())
 	t.Cleanup(ts.Close)
 
-	for _, path := range []string{"/app.js", "/tasks.js", "/style.css", "/tasks.html"} {
+	for _, path := range []string{"/app.js", "/tasks.js", "/runs.js", "/style.css", "/tasks.html", "/runs.html"} {
 		t.Run(path, func(t *testing.T) {
 			resp, err := http.Get(ts.URL + path)
 			require.NoError(t, err)
@@ -140,4 +140,42 @@ func TestHandlerIndexNeverShowsKeyMaterialHint(t *testing.T) {
 	s := string(body)
 	assert.Contains(t, s, "never shown")
 	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
+}
+
+func TestHandlerServesRunsHTML(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/runs.html")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/html")
+
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "Runs")
+	assert.Contains(t, s, "project-filter")
+	assert.Contains(t, s, "status-filter")
+	assert.Contains(t, s, "run-detail-dialog")
+	assert.Contains(t, s, "detail-log")
+}
+
+func TestHandlerRunsJSHasAPIClient(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/runs.js")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "/runs")
+	assert.Contains(t, s, "project_id")
+	assert.Contains(t, s, "status")
+	assert.Contains(t, s, "/log")
+	assert.Contains(t, s, "exit_code")
+	assert.Contains(t, s, "error_message")
 }
