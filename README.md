@@ -24,3 +24,14 @@
 - **Lock** — в SQLite; MVP: один run глобально.
 - Агент и MCP живут на worker; контейнер только оркестрирует.
 - Тесты: unit + acceptance через SSH stubs в Compose; правила держать краткими и актуальными.
+
+## Build & test (local)
+
+Requires Go (see [specs/05-tech-stack.md](specs/05-tech-stack.md)).
+
+```bash
+go build ./...
+go test ./...
+```
+
+Binary entrypoint: `cmd/master-agent`. Package layout under `internal/` (`cli`, `store`, `scheduler`, `runner`, …).
