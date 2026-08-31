@@ -32,11 +32,12 @@
           <th>Path</th>
           <th>SSH</th>
           <th>Enabled</th>
+          <th>SSH key</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody id="projects-body">
-        <tr><td colspan="5" class="muted">Loading…</td></tr>
+        <tr><td colspan="6" class="muted">Loading…</td></tr>
       </tbody>
     </table>
 
@@ -79,6 +80,36 @@
         <div class="dialog-actions">
           <button type="button" id="btn-cancel">Cancel</button>
           <button type="submit" class="primary" id="btn-save">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="key-dialog">
+      <form id="key-form" method="dialog">
+        <h3 id="key-dialog-title">SSH key</h3>
+        <input type="hidden" id="key-project-id">
+
+        <p id="key-project-name" class="key-project-name"></p>
+
+        <div class="key-status-row">
+          <span class="label">Status</span>
+          <span id="key-status-badge" class="badge off">not configured</span>
+        </div>
+
+        <div class="key-path-row">
+          <span class="label">Key path</span>
+          <code id="key-path-display" class="key-path">—</code>
+        </div>
+
+        <label for="key-file">Upload private key</label>
+        <input id="key-file" name="key" type="file" accept=".pem,.key,*">
+        <p class="hint">Replaces any existing key. Key contents are never shown in the UI.</p>
+
+        <div id="key-form-error" class="form-error hidden"></div>
+
+        <div class="dialog-actions">
+          <button type="button" id="key-btn-cancel">Close</button>
+          <button type="submit" class="primary" id="key-btn-upload">Upload</button>
         </div>
       </form>
     </dialog>

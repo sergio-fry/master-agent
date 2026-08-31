@@ -57,3 +57,49 @@ func TestHandlerAppJSHasAPIClient(t *testing.T) {
 	assert.True(t, strings.Contains(s, "'/projects'"))
 	assert.True(t, strings.Contains(s, "Authorization"))
 }
+
+func TestHandlerIndexHasKeyUploadUI(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "key-dialog")
+	assert.Contains(t, s, `type="file"`)
+	assert.Contains(t, s, "SSH key")
+}
+
+func TestHandlerAppJSHasKeyUploadClient(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/app.js")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "/key")
+	assert.Contains(t, s, "FormData")
+	assert.Contains(t, s, "key_present")
+	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
+	assert.NotContains(t, s, "readAsText")
+}
+
+func TestHandlerIndexNeverShowsKeyMaterialHint(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "never shown")
+	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
+}
