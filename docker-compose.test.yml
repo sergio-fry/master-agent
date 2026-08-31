@@ -41,6 +41,9 @@ services:
     depends_on:
       - worker
       - worker-b
+    ports:
+      # Host-side HTTP API acceptance tests (go test -tags=acceptance).
+      - "18080:8080"
     environment:
       TICK_INTERVAL: "1s"
     volumes:

@@ -126,6 +126,23 @@ func execSSHHost(t testing.TB, root, host, identity, remoteCmd string) string {
 	)
 }
 
+func waitForMasterAgentContainer(root string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	var last string
+	for time.Now().Before(deadline) {
+		cmd := composeCmd(root, "exec", "-T", "master-agent", "echo", "ready")
+		var buf bytes.Buffer
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		if err := cmd.Run(); err == nil && strings.TrimSpace(buf.String()) == "ready" {
+			return nil
+		}
+		last = buf.String()
+		time.Sleep(500 * time.Millisecond)
+	}
+	return fmt.Errorf("master-agent container not ready within %s; last output:\n%s", timeout, last)
+}
+
 func installSqliteCLI(root string) error {
 	cmd := composeCmd(root, "exec", "-T", "master-agent", "sh", "-c",
 		"command -v sqlite3 >/dev/null || apk add --no-cache sqlite")
@@ -157,6 +174,14 @@ func TestMain(m *testing.M) {
 	}(), "../.."))
 
 	if os.Getenv("ACCEPTANCE_SKIP_COMPOSE") == "1" {
+		if err := waitForMasterAgentContainer(root, 60*time.Second); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
+		if err := installSqliteCLI(root); err != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", err)
+			os.Exit(1)
+		}
 		os.Exit(m.Run())
 	}
 
@@ -165,6 +190,12 @@ func TestMain(m *testing.M) {
 	up.Stderr = os.Stderr
 	if err := up.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "compose up failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := waitForMasterAgentContainer(root, 60*time.Second); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		_ = composeCmd(root, "down", "-v", "--remove-orphans").Run()
 		os.Exit(1)
 	}
 
