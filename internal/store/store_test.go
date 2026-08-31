@@ -248,3 +248,62 @@ func TestTaskRequiresExistingProject(t *testing.T) {
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, sql.ErrNoRows)
 }
+
+func TestListAndLookupHelpers(t *testing.T) {
+	s, _ := openTempStore(t)
+
+	p1 := &Project{
+		Name: "app-a", Path: "/a", SSHHost: "h1", SSHUser: "u",
+		SSHKeyPath: "/k1", Enabled: true,
+	}
+	p2 := &Project{
+		Name: "app-b", Path: "/b", SSHHost: "h2", SSHUser: "u",
+		SSHKeyPath: "/k2", Enabled: true,
+	}
+	require.NoError(t, s.CreateProject(p1))
+	require.NoError(t, s.CreateProject(p2))
+
+	projects, err := s.ListProjects()
+	require.NoError(t, err)
+	require.Len(t, projects, 2)
+	assert.Equal(t, "app-a", projects[0].Name)
+	assert.Equal(t, "app-b", projects[1].Name)
+
+	got, err := s.GetProjectByName("app-b")
+	require.NoError(t, err)
+	assert.Equal(t, p2.ID, got.ID)
+
+	_, err = s.GetProjectByName("missing")
+	assert.ErrorIs(t, err, ErrNotFound)
+
+	t1 := &Task{
+		ProjectID: p1.ID, Name: "drain", Prompt: "p1", Command: "c1",
+		IntervalSeconds: 1800, Enabled: true,
+	}
+	t2 := &Task{
+		ProjectID: p1.ID, Name: "audit", Prompt: "p2", Command: "c2",
+		IntervalSeconds: 86400, Enabled: true,
+	}
+	t3 := &Task{
+		ProjectID: p2.ID, Name: "drain", Prompt: "p3", Command: "c3",
+		IntervalSeconds: 60, Enabled: true,
+	}
+	require.NoError(t, s.CreateTask(t1))
+	require.NoError(t, s.CreateTask(t2))
+	require.NoError(t, s.CreateTask(t3))
+
+	all, err := s.ListTasks("")
+	require.NoError(t, err)
+	require.Len(t, all, 3)
+
+	forP1, err := s.ListTasks(p1.ID)
+	require.NoError(t, err)
+	require.Len(t, forP1, 2)
+
+	found, err := s.GetTaskByProjectAndName(p1.ID, "audit")
+	require.NoError(t, err)
+	assert.Equal(t, t2.ID, found.ID)
+
+	_, err = s.GetTaskByProjectAndName(p1.ID, "missing")
+	assert.ErrorIs(t, err, ErrNotFound)
+}

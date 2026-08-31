@@ -84,6 +84,72 @@ func (s *Store) UpdateProject(p *Project) error {
 	return nil
 }
 
+// ListProjects returns all projects ordered by name.
+func (s *Store) ListProjects() ([]Project, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_key_path, enabled, created_at, updated_at
+		FROM projects ORDER BY name, id`)
+	if err != nil {
+		return nil, fmt.Errorf("list projects: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Project
+	for rows.Next() {
+		var p Project
+		var enabled int
+		if err := rows.Scan(
+			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHKeyPath,
+			&enabled, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan project: %w", err)
+		}
+		p.Enabled = intToBool(enabled)
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list projects rows: %w", err)
+	}
+	return out, nil
+}
+
+// GetProjectByName returns a project by exact name.
+// If multiple rows match, returns an error.
+func (s *Store) GetProjectByName(name string) (*Project, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_key_path, enabled, created_at, updated_at
+		FROM projects WHERE name = ? ORDER BY created_at, id`, name)
+	if err != nil {
+		return nil, fmt.Errorf("get project by name: %w", err)
+	}
+	defer rows.Close()
+
+	var matches []Project
+	for rows.Next() {
+		var p Project
+		var enabled int
+		if err := rows.Scan(
+			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHKeyPath,
+			&enabled, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan project: %w", err)
+		}
+		p.Enabled = intToBool(enabled)
+		matches = append(matches, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get project by name rows: %w", err)
+	}
+	switch len(matches) {
+	case 0:
+		return nil, ErrNotFound
+	case 1:
+		return &matches[0], nil
+	default:
+		return nil, fmt.Errorf("multiple projects named %q; use id", name)
+	}
+}
+
 // CreateTask inserts a task. ID and timestamps are set if empty.
 func (s *Store) CreateTask(t *Task) error {
 	if t.ID == "" {
@@ -161,6 +227,92 @@ func (s *Store) UpdateTask(t *Task) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+// ListTasks returns tasks, optionally filtered by project ID, ordered by name.
+func (s *Store) ListTasks(projectID string) ([]Task, error) {
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if projectID == "" {
+		rows, err = s.db.Query(`
+			SELECT id, project_id, name, prompt, command, interval_seconds,
+				enabled, last_run_at, next_run_at, created_at, updated_at
+			FROM tasks ORDER BY name, id`)
+	} else {
+		rows, err = s.db.Query(`
+			SELECT id, project_id, name, prompt, command, interval_seconds,
+				enabled, last_run_at, next_run_at, created_at, updated_at
+			FROM tasks WHERE project_id = ? ORDER BY name, id`, projectID)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Task
+	for rows.Next() {
+		var t Task
+		var enabled int
+		var lastRun, nextRun sql.NullString
+		if err := rows.Scan(
+			&t.ID, &t.ProjectID, &t.Name, &t.Prompt, &t.Command, &t.IntervalSeconds,
+			&enabled, &lastRun, &nextRun, &t.CreatedAt, &t.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		t.Enabled = intToBool(enabled)
+		t.LastRunAt = fromNullString(lastRun)
+		t.NextRunAt = fromNullString(nextRun)
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list tasks rows: %w", err)
+	}
+	return out, nil
+}
+
+// GetTaskByProjectAndName returns a task by project id and task name.
+// If multiple rows match, returns an error.
+func (s *Store) GetTaskByProjectAndName(projectID, name string) (*Task, error) {
+	rows, err := s.db.Query(`
+		SELECT id, project_id, name, prompt, command, interval_seconds,
+			enabled, last_run_at, next_run_at, created_at, updated_at
+		FROM tasks WHERE project_id = ? AND name = ? ORDER BY created_at, id`,
+		projectID, name)
+	if err != nil {
+		return nil, fmt.Errorf("get task by name: %w", err)
+	}
+	defer rows.Close()
+
+	var matches []Task
+	for rows.Next() {
+		var t Task
+		var enabled int
+		var lastRun, nextRun sql.NullString
+		if err := rows.Scan(
+			&t.ID, &t.ProjectID, &t.Name, &t.Prompt, &t.Command, &t.IntervalSeconds,
+			&enabled, &lastRun, &nextRun, &t.CreatedAt, &t.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan task: %w", err)
+		}
+		t.Enabled = intToBool(enabled)
+		t.LastRunAt = fromNullString(lastRun)
+		t.NextRunAt = fromNullString(nextRun)
+		matches = append(matches, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("get task by name rows: %w", err)
+	}
+	switch len(matches) {
+	case 0:
+		return nil, ErrNotFound
+	case 1:
+		return &matches[0], nil
+	default:
+		return nil, fmt.Errorf("multiple tasks named %q on project; use id", name)
+	}
 }
 
 // InsertLock acquires a project lock. Fails if a lock for the project already exists.
