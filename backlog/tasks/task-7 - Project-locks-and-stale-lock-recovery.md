@@ -14,6 +14,11 @@ references:
   - specs/01-data-model.md
   - specs/02-scheduler.md
   - specs/06-testing.md
+modified_files:
+  - internal/store/lock.go
+  - internal/lock/manager.go
+  - internal/lock/process.go
+  - internal/lock/manager_test.go
 priority: high
 type: feature
 ordinal: 70
