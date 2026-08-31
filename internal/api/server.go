@@ -52,6 +52,10 @@ func New(cfg Config) *Server {
 		mux: http.NewServeMux(),
 	}
 	s.mux.HandleFunc("GET /api/v1/status", s.handleStatus)
+	s.mux.HandleFunc("GET /api/v1/projects", s.handleListProjects)
+	s.mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)
+	s.mux.HandleFunc("GET /api/v1/projects/{id}", s.handleGetProject)
+	s.mux.HandleFunc("PATCH /api/v1/projects/{id}", s.handlePatchProject)
 	return s
 }
 
