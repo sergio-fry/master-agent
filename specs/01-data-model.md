@@ -61,7 +61,7 @@ Master-agent **не моделирует очереди, issue, статусы �
 Примеры:
 
 ```text
-cursor agent -p "{{prompt}}"
+cursor agent -p {{prompt}}
 ```
 
 ```json
@@ -70,11 +70,13 @@ cursor agent -p "{{prompt}}"
 
 | Placeholder | Value |
 |-------------|-------|
-| `{{prompt}}` | Task.prompt (escaped) |
+| `{{prompt}}` | Task.prompt (shell-quoted in string commands; literal in JSON argv) |
 | `{{project_path}}` | Project.path |
 | `{{project_name}}` | Project.name |
 | `{{task_name}}` | Task.name |
 | `{{task_id}}` | Task.id |
+
+**Substitution rules:** shell-string commands get POSIX single-quote escaping per value; JSON argv commands substitute literally. Unknown `{{…}}` → error. Empty fields → empty value (`''` in shell mode).
 
 **Scheduling rule:**
 
@@ -158,7 +160,7 @@ master-agent project add \
   --ssh-key /secrets/projects/my-app/id_ed25519
 
 master-agent task add --project my-app --name drain --interval 1800 \
-  --command 'cursor agent -p "{{prompt}}"' \
+  --command 'cursor agent -p {{prompt}}' \
   --prompt '...'
 
 master-agent run list --project my-app

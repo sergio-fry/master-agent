@@ -74,7 +74,7 @@ Project directory: {{project_path}}
 ## Command Examples (выполняются на worker)
 
 ```bash
-cursor agent -p "{{prompt}}"
+cursor agent -p {{prompt}}
 ```
 
 ```json
@@ -82,8 +82,10 @@ cursor agent -p "{{prompt}}"
 ```
 
 ```bash
-claude -p "{{prompt}}"
+claude -p {{prompt}}
 ```
+
+Не оборачивайте плейсхолдеры в кавычки в shell-командах: подстановка сама делает POSIX single-quote escaping (`internal/placeholder`).
 
 Пользователь задаёт command per Task; master-agent не навязывает конкретный CLI.
 
