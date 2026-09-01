@@ -15,7 +15,6 @@ import (
 
 func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Command {
 	var addrFlag string
-	var secretsDir string
 
 	cmd := &cobra.Command{
 		Use:   "serve",
@@ -32,7 +31,7 @@ func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Co
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			apiSrv := newAPIServer(s, secretsDir)
+			apiSrv := newAPIServer(s)
 			printHTTPListening(opts.Stdout, addr)
 			err = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), opts.Stdout)
 			if err != nil && ctx.Err() != nil {
@@ -45,8 +44,6 @@ func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Co
 
 	cmd.Flags().StringVar(&addrFlag, "addr", "",
 		"HTTP listen address (default 127.0.0.1:8080); overrides HTTP_ADDR env")
-	cmd.Flags().StringVar(&secretsDir, "secrets-dir", defaultSecretsDir,
-		"base directory for uploaded SSH private keys")
 	return cmd
 }
 

@@ -33,7 +33,7 @@ echo "==> Building ${IMAGE} from ${REPO_ROOT}"
 docker build -t "${IMAGE}" "${REPO_ROOT}"
 
 echo "==> Preparing ${INSTALL_DIR}"
-mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/secrets/projects" "${INSTALL_DIR}/ssh"
+mkdir -p "${INSTALL_DIR}/data" "${INSTALL_DIR}/ssh"
 
 if [[ ! -f "${INSTALL_DIR}/ssh/known_hosts" ]]; then
 	touch "${INSTALL_DIR}/ssh/known_hosts"

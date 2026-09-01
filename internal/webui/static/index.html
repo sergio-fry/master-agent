@@ -68,9 +68,10 @@
         <label for="ssh_user">SSH user</label>
         <input id="ssh_user" name="ssh_user" required>
 
-        <label for="ssh_key_path">SSH key path</label>
-        <input id="ssh_key_path" name="ssh_key_path" required placeholder="/secrets/projects/{id}/id_ed25519">
-        <p class="hint">Typically <code>/secrets/projects/&lt;id&gt;/id_ed25519</code> after key upload.</p>
+        <label for="ssh_private_key">SSH private key</label>
+        <textarea id="ssh_private_key" name="ssh_private_key" rows="8" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+        <p id="key-hint-create" class="hint">Paste the full private key body. It is stored in SQLite and never shown again after save.</p>
+        <p id="key-hint-edit" class="hint hidden">Leave empty to keep the existing key. Paste new key material to replace it.</p>
 
         <label class="checkbox">
           <input id="enabled" name="enabled" type="checkbox" checked>
@@ -82,36 +83,6 @@
         <div class="dialog-actions">
           <button type="button" id="btn-cancel">Cancel</button>
           <button type="submit" class="primary" id="btn-save">Save</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="key-dialog">
-      <form id="key-form" method="dialog">
-        <h3 id="key-dialog-title">SSH key</h3>
-        <input type="hidden" id="key-project-id">
-
-        <p id="key-project-name" class="key-project-name"></p>
-
-        <div class="key-status-row">
-          <span class="label">Status</span>
-          <span id="key-status-badge" class="badge off">not configured</span>
-        </div>
-
-        <div class="key-path-row">
-          <span class="label">Key path</span>
-          <code id="key-path-display" class="key-path">—</code>
-        </div>
-
-        <label for="key-file">Upload private key</label>
-        <input id="key-file" name="key" type="file" accept=".pem,.key,*">
-        <p class="hint">Replaces any existing key. Key contents are never shown in the UI.</p>
-
-        <div id="key-form-error" class="form-error hidden"></div>
-
-        <div class="dialog-actions">
-          <button type="button" id="key-btn-cancel">Close</button>
-          <button type="submit" class="primary" id="key-btn-upload">Upload</button>
         </div>
       </form>
     </dialog>

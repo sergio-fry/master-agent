@@ -24,7 +24,7 @@ func seedProjectTask(t *testing.T, s *store.Store) (projectID, taskID string) {
 	t.Helper()
 	p := &store.Project{
 		Name: "app", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p))
 	task := &store.Task{
@@ -112,7 +112,7 @@ func TestRecoverStaleClearsDeadPID(t *testing.T) {
 	// Simulate a second project with a dead SSH client PID.
 	p2 := &store.Project{
 		Name: "other", Path: "/o", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k2", Enabled: true,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p2))
 	t2 := &store.Task{

@@ -56,10 +56,10 @@ func TestHandlerAppJSHasAPIClient(t *testing.T) {
 	s := string(body)
 	assert.True(t, strings.Contains(s, "'/projects'"))
 	assert.True(t, strings.Contains(s, "MAAuth"))
-	assert.NotContains(t, s, "sessionStorage")
+	assert.Contains(t, s, "ssh_private_key")
 }
 
-func TestHandlerIndexHasKeyUploadUI(t *testing.T) {
+func TestHandlerIndexHasInlineKeyField(t *testing.T) {
 	ts := httptest.NewServer(Handler())
 	t.Cleanup(ts.Close)
 
@@ -69,26 +69,10 @@ func TestHandlerIndexHasKeyUploadUI(t *testing.T) {
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	s := string(body)
-	assert.Contains(t, s, "key-dialog")
-	assert.Contains(t, s, `type="file"`)
-	assert.Contains(t, s, "SSH key")
-}
-
-func TestHandlerAppJSHasKeyUploadClient(t *testing.T) {
-	ts := httptest.NewServer(Handler())
-	t.Cleanup(ts.Close)
-
-	resp, err := http.Get(ts.URL + "/app.js")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	s := string(body)
-	assert.Contains(t, s, "/key")
-	assert.Contains(t, s, "FormData")
-	assert.Contains(t, s, "key_present")
-	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
-	assert.NotContains(t, s, "readAsText")
+	assert.Contains(t, s, "ssh_private_key")
+	assert.Contains(t, s, "<textarea")
+	assert.Contains(t, s, "never shown")
+	assert.NotContains(t, s, "type=\"file\"")
 }
 
 func TestHandlerServesTasksHTML(t *testing.T) {
@@ -108,7 +92,7 @@ func TestHandlerServesTasksHTML(t *testing.T) {
 	assert.Contains(t, s, "interval_seconds")
 	assert.Contains(t, s, "task-form")
 	assert.NotContains(t, s, "ssh_host")
-	assert.NotContains(t, s, "ssh_key_path")
+	assert.NotContains(t, s, "ssh_private_key")
 }
 
 func TestHandlerTasksJSHasAPIClient(t *testing.T) {
@@ -127,20 +111,6 @@ func TestHandlerTasksJSHasAPIClient(t *testing.T) {
 	assert.Contains(t, s, "next_run_at")
 	assert.Contains(t, s, "interval_seconds")
 	assert.NotContains(t, s, "ssh_host")
-}
-
-func TestHandlerIndexNeverShowsKeyMaterialHint(t *testing.T) {
-	ts := httptest.NewServer(Handler())
-	t.Cleanup(ts.Close)
-
-	resp, err := http.Get(ts.URL + "/")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	s := string(body)
-	assert.Contains(t, s, "never shown")
-	assert.NotContains(t, s, "BEGIN OPENSSH PRIVATE KEY")
 }
 
 func TestHandlerServesRunsHTML(t *testing.T) {

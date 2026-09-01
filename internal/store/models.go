@@ -7,9 +7,9 @@ type Project struct {
 	Path       string
 	SSHHost    string
 	SSHUser    string
-	SSHPort    int
-	SSHKeyPath string
-	Enabled    bool
+	SSHPort        int
+	SSHPrivateKey  string
+	Enabled        bool
 	CreatedAt  string
 	UpdatedAt  string
 }

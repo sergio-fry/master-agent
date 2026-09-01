@@ -16,7 +16,7 @@ Master-agent **не моделирует очереди, issue, статусы �
 | `ssh_host` | TEXT | yes | Хост или SSH alias (`worker.example`, `host.docker.internal`) |
 | `ssh_user` | TEXT | yes | Пользователь SSH |
 | `ssh_port` | INTEGER | yes | Порт SSH (default: 22) |
-| `ssh_key_path` | TEXT | yes | Путь к private key **внутри контейнера** (например `/secrets/projects/my-app/id_ed25519`) |
+| `ssh_private_key` | TEXT | yes | Тело private key (PEM/OpenSSH); хранится в SQLite, не отдаётся через API |
 | `enabled` | INTEGER (0/1) | yes | Участвует ли в scheduling (default: 1) |
 | `created_at` | TEXT (ISO8601) | yes | |
 | `updated_at` | TEXT (ISO8601) | yes | |
@@ -25,14 +25,14 @@ Master-agent **не моделирует очереди, issue, статусы �
 
 - `path` — путь на **удалённой** ФС; локальная проверка существования в контейнере **не требуется** (опционально: `ssh … test -d`).
 - У каждого проекта свой ключ и своя машина (могут совпадать между проектами, но хранятся per-project).
-- `ssh_key_path` должен быть доступен для чтения процессу daemon (обычно volume mount `:ro`).
+- `ssh_private_key` хранится в SQLite; API/UI возвращают только `key_configured: true/false`.
 - `name` — unique среди enabled-проектов (рекомендация).
 
 **Что принадлежит Project vs Task:**
 
 | Project | Task |
 |---------|------|
-| `path`, `ssh_host`, `ssh_user`, `ssh_port`, `ssh_key_path` | `interval_seconds`, `command`, `prompt` |
+| `path`, `ssh_host`, `ssh_user`, `ssh_port`, `ssh_private_key` | `interval_seconds`, `command`, `prompt` |
 | «где» и «под каким ключом» | «когда» и «что сказать агенту» |
 
 ## Entity: Task

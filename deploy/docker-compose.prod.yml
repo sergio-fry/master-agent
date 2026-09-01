@@ -20,7 +20,6 @@ services:
       MASTER_AGENT_TOKEN: "${MASTER_AGENT_TOKEN:-}"
     volumes:
       - /opt/master-agent/data:/data
-      - /opt/master-agent/secrets:/secrets
       - /opt/master-agent/ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
     command: ["daemon", "--http-addr", "0.0.0.0:8080"]
     logging:

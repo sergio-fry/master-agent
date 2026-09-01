@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,13 @@ import (
 
 	"master-agent/internal/store"
 )
+
+func writeTestKeyFile(t *testing.T) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "id_ed25519")
+	require.NoError(t, os.WriteFile(path, []byte(store.TestSSHPrivateKey), 0o600))
+	return path
+}
 
 func runCLI(t *testing.T, dbPath string, args ...string) (string, error) {
 	t.Helper()
@@ -24,6 +32,7 @@ func runCLI(t *testing.T, dbPath string, args ...string) (string, error) {
 
 func TestProjectAddPersistsToSQLite(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 
 	out, err := runCLI(t, dbPath,
 		"project", "add",
@@ -31,7 +40,7 @@ func TestProjectAddPersistsToSQLite(t *testing.T) {
 		"--path", "/home/dev/my-app",
 		"--ssh-host", "dev-box",
 		"--ssh-user", "dev",
-		"--ssh-key", "/secrets/projects/my-app/id_ed25519",
+		"--ssh-key", keyFile,
 	)
 	require.NoError(t, err)
 	assert.Contains(t, out, "project created: my-app")
@@ -46,19 +55,20 @@ func TestProjectAddPersistsToSQLite(t *testing.T) {
 	assert.Equal(t, "dev-box", p.SSHHost)
 	assert.Equal(t, "dev", p.SSHUser)
 	assert.Equal(t, 22, p.SSHPort)
-	assert.Equal(t, "/secrets/projects/my-app/id_ed25519", p.SSHKeyPath)
+	assert.True(t, p.KeyConfigured())
 	assert.True(t, p.Enabled)
 }
 
 func TestProjectAddCustomSSHPort(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 	_, err := runCLI(t, dbPath,
 		"project", "add",
 		"--name", "app",
 		"--path", "/p",
 		"--ssh-host", "h",
 		"--ssh-user", "u",
-		"--ssh-key", "/k",
+		"--ssh-key", keyFile,
 		"--ssh-port", "2222",
 	)
 	require.NoError(t, err)
@@ -73,10 +83,11 @@ func TestProjectAddCustomSSHPort(t *testing.T) {
 
 func TestTaskAddRequiresProjectFieldsAndNoSSH(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 	_, err := runCLI(t, dbPath,
 		"project", "add",
 		"--name", "my-app", "--path", "/p", "--ssh-host", "h",
-		"--ssh-user", "u", "--ssh-key", "/k",
+		"--ssh-user", "u", "--ssh-key", keyFile,
 	)
 	require.NoError(t, err)
 
@@ -115,10 +126,11 @@ func TestTaskAddRequiresProjectFieldsAndNoSSH(t *testing.T) {
 
 func TestListAndDisableProjectAndTask(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 	_, err := runCLI(t, dbPath,
 		"project", "add",
 		"--name", "my-app", "--path", "/p", "--ssh-host", "h",
-		"--ssh-user", "u", "--ssh-key", "/k",
+		"--ssh-user", "u", "--ssh-key", keyFile,
 	)
 	require.NoError(t, err)
 	_, err = runCLI(t, dbPath,
@@ -164,10 +176,11 @@ func TestListAndDisableProjectAndTask(t *testing.T) {
 
 func TestMultipleTasksOnOneProject(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 	_, err := runCLI(t, dbPath,
 		"project", "add",
 		"--name", "my-app", "--path", "/p", "--ssh-host", "h",
-		"--ssh-user", "u", "--ssh-key", "/k",
+		"--ssh-user", "u", "--ssh-key", keyFile,
 	)
 	require.NoError(t, err)
 
@@ -208,10 +221,11 @@ func TestTaskAddMissingRequiredFlags(t *testing.T) {
 
 func TestRunListShowsSampleRuns(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "test.db")
+	keyFile := writeTestKeyFile(t)
 	_, err := runCLI(t, dbPath,
 		"project", "add",
 		"--name", "my-app", "--path", "/p", "--ssh-host", "h",
-		"--ssh-user", "u", "--ssh-key", "/k",
+		"--ssh-user", "u", "--ssh-key", keyFile,
 	)
 	require.NoError(t, err)
 	_, err = runCLI(t, dbPath,

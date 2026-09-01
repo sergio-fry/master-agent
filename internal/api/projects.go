@@ -13,50 +13,50 @@ import (
 // projectJSON is the API representation of a Project.
 // SSH connection fields are included; private key material is never returned.
 type projectJSON struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	SSHHost    string `json:"ssh_host"`
-	SSHUser    string `json:"ssh_user"`
-	SSHPort    int    `json:"ssh_port"`
-	SSHKeyPath string `json:"ssh_key_path"`
-	Enabled    bool   `json:"enabled"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	SSHHost       string `json:"ssh_host"`
+	SSHUser       string `json:"ssh_user"`
+	SSHPort       int    `json:"ssh_port"`
+	KeyConfigured bool   `json:"key_configured"`
+	Enabled       bool   `json:"enabled"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
 }
 
 type createProjectRequest struct {
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	SSHHost    string `json:"ssh_host"`
-	SSHUser    string `json:"ssh_user"`
-	SSHPort    *int   `json:"ssh_port"`
-	SSHKeyPath string `json:"ssh_key_path"`
-	Enabled    *bool  `json:"enabled"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	SSHHost       string `json:"ssh_host"`
+	SSHUser       string `json:"ssh_user"`
+	SSHPort       *int   `json:"ssh_port"`
+	SSHPrivateKey string `json:"ssh_private_key"`
+	Enabled       *bool  `json:"enabled"`
 }
 
 type patchProjectRequest struct {
-	Name       *string `json:"name"`
-	Path       *string `json:"path"`
-	SSHHost    *string `json:"ssh_host"`
-	SSHUser    *string `json:"ssh_user"`
-	SSHPort    *int    `json:"ssh_port"`
-	SSHKeyPath *string `json:"ssh_key_path"`
-	Enabled    *bool   `json:"enabled"`
+	Name          *string `json:"name"`
+	Path          *string `json:"path"`
+	SSHHost       *string `json:"ssh_host"`
+	SSHUser       *string `json:"ssh_user"`
+	SSHPort       *int    `json:"ssh_port"`
+	SSHPrivateKey *string `json:"ssh_private_key"`
+	Enabled       *bool   `json:"enabled"`
 }
 
 func projectToJSON(p *store.Project) projectJSON {
 	return projectJSON{
-		ID:         p.ID,
-		Name:       p.Name,
-		Path:       p.Path,
-		SSHHost:    p.SSHHost,
-		SSHUser:    p.SSHUser,
-		SSHPort:    p.SSHPort,
-		SSHKeyPath: p.SSHKeyPath,
-		Enabled:    p.Enabled,
-		CreatedAt:  p.CreatedAt,
-		UpdatedAt:  p.UpdatedAt,
+		ID:            p.ID,
+		Name:          p.Name,
+		Path:          p.Path,
+		SSHHost:       p.SSHHost,
+		SSHUser:       p.SSHUser,
+		SSHPort:       p.SSHPort,
+		KeyConfigured: p.KeyConfigured(),
+		Enabled:       p.Enabled,
+		CreatedAt:     p.CreatedAt,
+		UpdatedAt:     p.UpdatedAt,
 	}
 }
 
@@ -99,7 +99,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	req.Path = strings.TrimSpace(req.Path)
 	req.SSHHost = strings.TrimSpace(req.SSHHost)
 	req.SSHUser = strings.TrimSpace(req.SSHUser)
-	req.SSHKeyPath = strings.TrimSpace(req.SSHKeyPath)
+	req.SSHPrivateKey = strings.TrimSpace(req.SSHPrivateKey)
 
 	if err := validateCreateProject(req); err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
@@ -116,13 +116,13 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &store.Project{
-		Name:       req.Name,
-		Path:       req.Path,
-		SSHHost:    req.SSHHost,
-		SSHUser:    req.SSHUser,
-		SSHPort:    port,
-		SSHKeyPath: req.SSHKeyPath,
-		Enabled:    enabled,
+		Name:          req.Name,
+		Path:          req.Path,
+		SSHHost:       req.SSHHost,
+		SSHUser:       req.SSHUser,
+		SSHPort:       port,
+		SSHPrivateKey: req.SSHPrivateKey,
+		Enabled:       enabled,
 	}
 	if err := s.cfg.Store.CreateProject(p); err != nil {
 		WriteError(w, http.StatusInternalServerError, "create project failed")
@@ -206,8 +206,9 @@ func validateCreateProject(req createProjectRequest) error {
 		return errors.New("ssh_host is required")
 	case req.SSHUser == "":
 		return errors.New("ssh_user is required")
-	case req.SSHKeyPath == "":
-		return errors.New("ssh_key_path is required")
+	}
+	if err := store.ValidateSSHPrivateKey(req.SSHPrivateKey); err != nil {
+		return err
 	}
 	if req.SSHPort != nil && *req.SSHPort <= 0 {
 		return errors.New("ssh_port must be positive")
@@ -217,7 +218,7 @@ func validateCreateProject(req createProjectRequest) error {
 
 func applyProjectPatch(p *store.Project, req patchProjectRequest) error {
 	if req.Name == nil && req.Path == nil && req.SSHHost == nil && req.SSHUser == nil &&
-		req.SSHPort == nil && req.SSHKeyPath == nil && req.Enabled == nil {
+		req.SSHPort == nil && req.SSHPrivateKey == nil && req.Enabled == nil {
 		return errors.New("no fields to update")
 	}
 	if req.Name != nil {
@@ -248,12 +249,12 @@ func applyProjectPatch(p *store.Project, req patchProjectRequest) error {
 		}
 		p.SSHUser = v
 	}
-	if req.SSHKeyPath != nil {
-		v := strings.TrimSpace(*req.SSHKeyPath)
-		if v == "" {
-			return errors.New("ssh_key_path must not be empty")
+	if req.SSHPrivateKey != nil {
+		v := strings.TrimSpace(*req.SSHPrivateKey)
+		if err := store.ValidateSSHPrivateKey(v); err != nil {
+			return err
 		}
-		p.SSHKeyPath = v
+		p.SSHPrivateKey = v
 	}
 	if req.SSHPort != nil {
 		if *req.SSHPort <= 0 {
@@ -277,7 +278,6 @@ func decodeJSONBody(r *http.Request, dst any) error {
 		}
 		return errors.New("invalid JSON body")
 	}
-	// Reject trailing junk.
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return errors.New("invalid JSON body")
 	}

@@ -15,9 +15,8 @@ import (
 )
 
 const (
-	defaultHTTPAddr    = "127.0.0.1:8080"
-	defaultSecretsDir  = "/secrets"
-	envHTTPAddr        = "HTTP_ADDR"
+	defaultHTTPAddr  = "127.0.0.1:8080"
+	envHTTPAddr      = "HTTP_ADDR"
 	httpShutdownWait   = 10 * time.Second
 )
 
@@ -31,13 +30,12 @@ func resolveHTTPAddr(flagValue string) string {
 	return defaultHTTPAddr
 }
 
-func newAPIServer(s *store.Store, secretsDir string) *api.Server {
+func newAPIServer(s *store.Store) *api.Server {
 	return api.New(api.Config{
-		Store:      s,
-		SecretsDir: secretsDir,
-		Token:      api.TokenFromEnv(),
-		Auth:       api.AuthFromEnv(),
-		Logger:     slog.Default(),
+		Store:  s,
+		Token:  api.TokenFromEnv(),
+		Auth:   api.AuthFromEnv(),
+		Logger: slog.Default(),
 	})
 }
 

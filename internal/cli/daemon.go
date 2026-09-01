@@ -24,7 +24,6 @@ const (
 func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Command {
 	var tickFlag string
 	var httpAddrFlag string
-	var secretsDir string
 
 	cmd := &cobra.Command{
 		Use:   "daemon",
@@ -46,7 +45,7 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 
 			httpAddr := resolveHTTPAddr(httpAddrFlag)
 			if httpAddrFlag != "" || os.Getenv(envHTTPAddr) != "" {
-				apiSrv := newAPIServer(s, secretsDir)
+				apiSrv := newAPIServer(s)
 				printHTTPListening(opts.Stdout, httpAddr)
 				go func() {
 					if err := startHTTPServer(ctx, httpAddr, newHTTPHandler(apiSrv), opts.Stdout); err != nil && ctx.Err() == nil {
@@ -77,8 +76,6 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 		"scheduler poll interval (duration, e.g. 30s); overrides TICK_INTERVAL env; default 30s")
 	cmd.Flags().StringVar(&httpAddrFlag, "http-addr", "",
 		"optional HTTP listen address for API/UI in-process (e.g. 0.0.0.0:8080); overrides HTTP_ADDR env")
-	cmd.Flags().StringVar(&secretsDir, "secrets-dir", defaultSecretsDir,
-		"base directory for uploaded SSH private keys (used with --http-addr)")
 	return cmd
 }
 

@@ -375,11 +375,11 @@ func TestScenarioPerProjectSSHIdentity(t *testing.T) {
 	}
 
 	hostA := sqlQuery(t, root, `SELECT ssh_host FROM projects WHERE name = 'proj-a';`)
-	keyA := sqlQuery(t, root, `SELECT ssh_key_path FROM projects WHERE name = 'proj-a';`)
+	keyA := sqlQuery(t, root, `SELECT ssh_private_key FROM projects WHERE name = 'proj-a';`)
 	hostB := sqlQuery(t, root, `SELECT ssh_host FROM projects WHERE name = 'proj-b';`)
-	keyB := sqlQuery(t, root, `SELECT ssh_key_path FROM projects WHERE name = 'proj-b';`)
+	keyB := sqlQuery(t, root, `SELECT ssh_private_key FROM projects WHERE name = 'proj-b';`)
 	assert.Equal(t, workerHost, hostA)
-	assert.Equal(t, keyPath, keyA)
+	assert.Contains(t, keyA, "PRIVATE KEY")
 	assert.Equal(t, workerBHost, hostB)
-	assert.Equal(t, keyPathB, keyB)
+	assert.Contains(t, keyB, "PRIVATE KEY")
 }

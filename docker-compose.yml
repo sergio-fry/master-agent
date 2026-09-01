@@ -1,20 +1,15 @@
-# Runtime volumes for SQLite, per-project SSH keys, and known_hosts.
-# Keys and known_hosts stay on the host — never baked into the image.
+# Runtime volumes for SQLite and known_hosts.
+# SSH private keys are stored inline in SQLite — no secrets volume required.
 #
 # Before first start:
-#   1. Put private keys under ./secrets/projects/<name>/ (e.g. id_ed25519)
-#      or upload via HTTP API when Web UI is enabled (requires rw mount below).
-#   2. Build known_hosts for StrictHostKeyChecking=yes, e.g.:
+#   1. Build known_hosts for StrictHostKeyChecking=yes, e.g.:
 #        ssh-keyscan -H worker.example.com >> ./ssh/known_hosts
-#   3. Register projects with ssh_key_path inside the container, e.g.
-#        /secrets/projects/my-app/id_ed25519
+#   2. Register projects via Web UI or CLI with inline SSH private key material.
 #
 # HTTP API (Web UI milestone):
 #   - Port 8080 is published when daemon runs with --http-addr (default command).
 #   - Set ADMIN_USERNAME + ADMIN_PASSWORD when exposing HTTP beyond a trusted network.
 #   - Optional MASTER_AGENT_TOKEN for Bearer API clients; optional SESSION_SECRET / SESSION_TTL.
-#   - ./secrets is mounted read-write so POST /api/v1/projects/{id}/key can store keys.
-#   - For scheduler-only (no API), omit --http-addr and mount ./secrets:ro instead.
 
 services:
   master-agent:
@@ -32,8 +27,6 @@ services:
     volumes:
       # SQLite DB + run logs (default --db /data/master-agent.db)
       - ./data:/data
-      # Per-project private keys (rw for API key upload)
-      - ./secrets:/secrets
       # Host key verification (OpenSSH GlobalKnownHostsFile)
       - ./ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
     command: ["daemon", "--http-addr", "0.0.0.0:8080"]

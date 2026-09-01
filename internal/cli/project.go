@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -40,14 +41,23 @@ func newProjectAddCmd(opts Options, openStore func() (*store.Store, error)) *cob
 			}
 			defer s.Close()
 
+			keyBytes, err := os.ReadFile(sshKey)
+			if err != nil {
+				return fmt.Errorf("read ssh key %q: %w", sshKey, err)
+			}
+			keyMaterial := string(keyBytes)
+			if err := store.ValidateSSHPrivateKey(keyMaterial); err != nil {
+				return err
+			}
+
 			p := &store.Project{
-				Name:       name,
-				Path:       path,
-				SSHHost:    sshHost,
-				SSHUser:    sshUser,
-				SSHPort:    sshPort,
-				SSHKeyPath: sshKey,
-				Enabled:    true,
+				Name:          name,
+				Path:          path,
+				SSHHost:       sshHost,
+				SSHUser:       sshUser,
+				SSHPort:       sshPort,
+				SSHPrivateKey: keyMaterial,
+				Enabled:       true,
 			}
 			if err := s.CreateProject(p); err != nil {
 				return err
@@ -60,7 +70,7 @@ func newProjectAddCmd(opts Options, openStore func() (*store.Store, error)) *cob
 	cmd.Flags().StringVar(&path, "path", "", "absolute path on the worker")
 	cmd.Flags().StringVar(&sshHost, "ssh-host", "", "SSH host or alias")
 	cmd.Flags().StringVar(&sshUser, "ssh-user", "", "SSH user")
-	cmd.Flags().StringVar(&sshKey, "ssh-key", "", "path to private key inside the container")
+	cmd.Flags().StringVar(&sshKey, "ssh-key", "", "path to private key file (read and stored inline in SQLite)")
 	cmd.Flags().IntVar(&sshPort, "ssh-port", 22, "SSH port")
 	_ = cmd.MarkFlagRequired("name")
 	_ = cmd.MarkFlagRequired("path")

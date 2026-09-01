@@ -35,8 +35,14 @@ type SSHRunner struct {
 
 // Run invokes ssh with Project credentials and the substituted remote command.
 func (r *SSHRunner) Run(ctx context.Context, project store.Project, command string) (Result, error) {
+	keyPath, cleanup, err := WriteTempSSHKey(project.SSHPrivateKey)
+	if err != nil {
+		return Result{}, err
+	}
+	defer cleanup()
+
 	interval, countMax := r.keepalive()
-	args, err := BuildSSHArgs(project, command, interval, countMax)
+	args, err := BuildSSHArgs(project, keyPath, command, interval, countMax)
 	if err != nil {
 		return Result{}, err
 	}
@@ -114,15 +120,15 @@ func exitStatus(ee *exec.ExitError) int {
 
 // BuildSSHArgs returns OpenSSH client arguments (without the binary name)
 // for the given project and already-substituted command.
-func BuildSSHArgs(project store.Project, command string, aliveInterval, aliveCountMax int) ([]string, error) {
+func BuildSSHArgs(project store.Project, identityFile, command string, aliveInterval, aliveCountMax int) ([]string, error) {
 	if project.SSHHost == "" {
 		return nil, fmt.Errorf("project ssh_host is required")
 	}
 	if project.SSHUser == "" {
 		return nil, fmt.Errorf("project ssh_user is required")
 	}
-	if project.SSHKeyPath == "" {
-		return nil, fmt.Errorf("project ssh_key_path is required")
+	if identityFile == "" {
+		return nil, fmt.Errorf("project ssh private key is required")
 	}
 	if project.Path == "" {
 		return nil, fmt.Errorf("project path is required")
@@ -146,7 +152,7 @@ func BuildSSHArgs(project store.Project, command string, aliveInterval, aliveCou
 	}
 
 	return []string{
-		"-i", project.SSHKeyPath,
+		"-i", identityFile,
 		"-p", fmt.Sprintf("%d", port),
 		"-o", "BatchMode=yes",
 		"-o", "IdentitiesOnly=yes",

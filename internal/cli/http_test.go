@@ -26,7 +26,7 @@ func TestStartHTTPServerServesStatus(t *testing.T) {
 	defer s.Close()
 
 	addr := freeTCPAddr(t)
-	apiSrv := newAPIServer(s, t.TempDir())
+	apiSrv := newAPIServer(s)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -60,7 +60,7 @@ func TestDaemonHTTPAddrDoesNotBlockTick(t *testing.T) {
 	defer s.Close()
 
 	addr := freeTCPAddr(t)
-	apiSrv := newAPIServer(s, t.TempDir())
+	apiSrv := newAPIServer(s)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -90,7 +90,7 @@ func TestStartHTTPServerServesUI(t *testing.T) {
 	defer s.Close()
 
 	addr := freeTCPAddr(t)
-	apiSrv := newAPIServer(s, t.TempDir())
+	apiSrv := newAPIServer(s)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

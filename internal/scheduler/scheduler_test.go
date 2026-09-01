@@ -31,7 +31,7 @@ func seed(t *testing.T, s *store.Store, nextRun *string, interval int) (store.Pr
 	t.Helper()
 	p := store.Project{
 		Name: "app", Path: "/work", SSHHost: "host", SSHUser: "user",
-		SSHKeyPath: "/key", Enabled: true,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(&p))
 	task := store.Task{
@@ -115,7 +115,7 @@ func TestTickSkipsDisabledTaskAndProject(t *testing.T) {
 
 	p := store.Project{
 		Name: "off", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: false,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: false,
 	}
 	require.NoError(t, s.CreateProject(&p))
 	past := now.Add(-time.Second).Format(time.RFC3339Nano)
@@ -126,7 +126,7 @@ func TestTickSkipsDisabledTaskAndProject(t *testing.T) {
 
 	p2 := store.Project{
 		Name: "on", Path: "/p2", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(&p2))
 	require.NoError(t, s.CreateTask(&store.Task{
@@ -152,7 +152,7 @@ func TestTickSkipsWhenGlobalRunActive(t *testing.T) {
 
 	p2 := store.Project{
 		Name: "other", Path: "/o", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k2", Enabled: true,
+		SSHPrivateKey: store.TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(&p2))
 	require.NoError(t, s.CreateTask(&store.Task{

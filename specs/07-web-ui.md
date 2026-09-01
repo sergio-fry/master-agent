@@ -7,7 +7,7 @@ This does **not** change SSH execution semantics. The UI configures orchestratio
 ## Goals
 
 - List / create / edit / enable-disable **Projects** (path + SSH host/user/port + key path).
-- Upload / replace **SSH private keys** into the secrets volume; never display key material after upload.
+- Upload / replace **SSH private keys** inline in the project (stored in SQLite); never display key material after save.
 - List / create / edit / enable-disable **Tasks** (interval, command, prompt only — no SSH fields).
 - List **Runs** (filter by project/task/status) and view **run logs** (`log_path` / captured output).
 - Read-only **daemon status**: tick config, whether a global run / project lock is active (best-effort).

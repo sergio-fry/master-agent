@@ -9,13 +9,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"master-agent/internal/store"
 )
 
 func createTestProject(t *testing.T, tsURL string) projectJSON {
 	t.Helper()
 	raw, err := json.Marshal(map[string]any{
 		"name": "my-app", "path": "/home/dev/my-app",
-		"ssh_host": "dev-box", "ssh_user": "dev", "ssh_key_path": "/secrets/k",
+		"ssh_host": "dev-box", "ssh_user": "dev", "ssh_private_key": store.TestSSHPrivateKey,
 	})
 	require.NoError(t, err)
 	resp, err := http.Post(tsURL+"/api/v1/projects", "application/json", bytes.NewReader(raw))
@@ -66,7 +67,7 @@ func TestTasksCreateListGetPatch(t *testing.T) {
 	assert.NotContains(t, rawMap, "ssh_host")
 	assert.NotContains(t, rawMap, "ssh_user")
 	assert.NotContains(t, rawMap, "ssh_port")
-	assert.NotContains(t, rawMap, "ssh_key_path")
+	assert.NotContains(t, rawMap, "ssh_private_key")
 
 	listResp, err := http.Get(ts.URL + "/api/v1/projects/" + p.ID + "/tasks")
 	require.NoError(t, err)
@@ -165,10 +166,10 @@ func TestTasksRejectSSHFields(t *testing.T) {
 			},
 		},
 		{
-			name: "ssh_key_path on create",
+			name: "ssh_private_key on create",
 			body: map[string]any{
 				"name": "t", "prompt": "p", "command": "c", "interval_seconds": 10,
-				"ssh_key_path": "/secrets/x",
+				"ssh_private_key": "/secrets/x",
 			},
 		},
 		{

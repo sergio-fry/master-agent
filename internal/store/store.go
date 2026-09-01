@@ -16,7 +16,7 @@ import (
 //go:embed schema.sql
 var schemaFS embed.FS
 
-const schemaVersion = 1
+const schemaVersion = 2
 
 // Store is SQLite persistence for projects, tasks, locks, and runs.
 type Store struct {
@@ -82,13 +82,23 @@ func (s *Store) migrate() error {
 		return nil
 	}
 
-	sqlBytes, err := schemaFS.ReadFile("schema.sql")
-	if err != nil {
-		return fmt.Errorf("read schema: %w", err)
+	switch current {
+	case 0:
+		sqlBytes, err := schemaFS.ReadFile("schema.sql")
+		if err != nil {
+			return fmt.Errorf("read schema: %w", err)
+		}
+		if _, err := s.db.Exec(string(sqlBytes)); err != nil {
+			return fmt.Errorf("apply schema: %w", err)
+		}
+	case 1:
+		if err := s.migrateV1ToV2(); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported schema version %d", current)
 	}
-	if _, err := s.db.Exec(string(sqlBytes)); err != nil {
-		return fmt.Errorf("apply schema: %w", err)
-	}
+
 	if _, err := s.db.Exec(`INSERT INTO schema_migrations(version) VALUES (?)`, schemaVersion); err != nil {
 		return fmt.Errorf("record schema version: %w", err)
 	}

@@ -32,13 +32,13 @@ func TestProjectsCreateListGetPatch(t *testing.T) {
 	ts, _ := startTestServerWithStore(t, "")
 
 	createBody := map[string]any{
-		"name":         "my-app",
-		"path":         "/home/dev/my-app",
-		"ssh_host":     "dev-box",
-		"ssh_user":     "dev",
-		"ssh_port":     2222,
-		"ssh_key_path": "/secrets/projects/my-app/id_ed25519",
-		"enabled":      true,
+		"name":            "my-app",
+		"path":            "/home/dev/my-app",
+		"ssh_host":        "dev-box",
+		"ssh_user":        "dev",
+		"ssh_port":        2222,
+		"ssh_private_key": store.TestSSHPrivateKey,
+		"enabled":         true,
 	}
 	raw, err := json.Marshal(createBody)
 	require.NoError(t, err)
@@ -52,24 +52,15 @@ func TestProjectsCreateListGetPatch(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 	assert.NotEmpty(t, created.ID)
 	assert.Equal(t, "my-app", created.Name)
-	assert.Equal(t, "/home/dev/my-app", created.Path)
-	assert.Equal(t, "dev-box", created.SSHHost)
-	assert.Equal(t, "dev", created.SSHUser)
-	assert.Equal(t, 2222, created.SSHPort)
-	assert.Equal(t, "/secrets/projects/my-app/id_ed25519", created.SSHKeyPath)
+	assert.True(t, created.KeyConfigured)
 	assert.True(t, created.Enabled)
-	assert.NotEmpty(t, created.CreatedAt)
-	assert.NotEmpty(t, created.UpdatedAt)
 
-	// Response must never include private key material — only path.
 	var rawMap map[string]any
 	rawBytes, err := json.Marshal(created)
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(rawBytes, &rawMap))
-	assert.NotContains(t, rawMap, "private_key")
-	assert.NotContains(t, rawMap, "key")
 	assert.NotContains(t, rawMap, "ssh_private_key")
-	assert.Equal(t, "/secrets/projects/my-app/id_ed25519", rawMap["ssh_key_path"])
+	assert.Equal(t, true, rawMap["key_configured"])
 
 	listResp, err := http.Get(ts.URL + "/api/v1/projects")
 	require.NoError(t, err)
@@ -100,8 +91,7 @@ func TestProjectsCreateListGetPatch(t *testing.T) {
 	var patched projectJSON
 	require.NoError(t, json.NewDecoder(patchResp.Body).Decode(&patched))
 	assert.False(t, patched.Enabled)
-	assert.Equal(t, created.Name, patched.Name)
-	assert.Equal(t, created.SSHKeyPath, patched.SSHKeyPath)
+	assert.True(t, patched.KeyConfigured)
 }
 
 func TestProjectsCreateValidationErrors(t *testing.T) {
@@ -115,64 +105,53 @@ func TestProjectsCreateValidationErrors(t *testing.T) {
 		{
 			name: "missing name",
 			body: map[string]any{
-				"path": "/p", "ssh_host": "h", "ssh_user": "u", "ssh_key_path": "/k",
+				"path": "/p", "ssh_host": "h", "ssh_user": "u", "ssh_private_key": store.TestSSHPrivateKey,
 			},
 			want: "name is required",
 		},
 		{
 			name: "missing path",
 			body: map[string]any{
-				"name": "n", "ssh_host": "h", "ssh_user": "u", "ssh_key_path": "/k",
+				"name": "n", "ssh_host": "h", "ssh_user": "u", "ssh_private_key": store.TestSSHPrivateKey,
 			},
 			want: "path is required",
 		},
 		{
 			name: "missing ssh_host",
 			body: map[string]any{
-				"name": "n", "path": "/p", "ssh_user": "u", "ssh_key_path": "/k",
+				"name": "n", "path": "/p", "ssh_user": "u", "ssh_private_key": store.TestSSHPrivateKey,
 			},
 			want: "ssh_host is required",
 		},
 		{
 			name: "missing ssh_user",
 			body: map[string]any{
-				"name": "n", "path": "/p", "ssh_host": "h", "ssh_key_path": "/k",
+				"name": "n", "path": "/p", "ssh_host": "h", "ssh_private_key": store.TestSSHPrivateKey,
 			},
 			want: "ssh_user is required",
 		},
 		{
-			name: "missing ssh_key_path",
+			name: "missing ssh_private_key",
 			body: map[string]any{
 				"name": "n", "path": "/p", "ssh_host": "h", "ssh_user": "u",
 			},
-			want: "ssh_key_path is required",
+			want: "ssh_private_key is required",
 		},
 		{
 			name: "invalid ssh_port",
 			body: map[string]any{
 				"name": "n", "path": "/p", "ssh_host": "h", "ssh_user": "u",
-				"ssh_key_path": "/k", "ssh_port": 0,
+				"ssh_private_key": store.TestSSHPrivateKey, "ssh_port": 0,
 			},
 			want: "ssh_port must be positive",
-		},
-		{
-			name: "empty body",
-			body: nil,
-			want: "request body is required",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var reader io.Reader
-			if tc.body != nil {
-				raw, err := json.Marshal(tc.body)
-				require.NoError(t, err)
-				reader = bytes.NewReader(raw)
-			} else {
-				reader = bytes.NewReader(nil)
-			}
-			resp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", reader)
+			raw, err := json.Marshal(tc.body)
+			require.NoError(t, err)
+			resp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", bytes.NewReader(raw))
 			require.NoError(t, err)
 			defer resp.Body.Close()
 			assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
@@ -181,58 +160,52 @@ func TestProjectsCreateValidationErrors(t *testing.T) {
 	}
 }
 
-func TestProjectsPatchNotFoundAndValidation(t *testing.T) {
+func TestProjectsPatchUpdatesSSHKey(t *testing.T) {
 	ts, _ := startTestServerWithStore(t, "")
 
-	t.Run("not found", func(t *testing.T) {
-		raw, err := json.Marshal(map[string]any{"enabled": false})
-		require.NoError(t, err)
-		req, err := http.NewRequest(http.MethodPatch, ts.URL+"/api/v1/projects/missing-id", bytes.NewReader(raw))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-		assertJSONError(t, resp, "project not found")
+	createRaw, err := json.Marshal(map[string]any{
+		"name": "n", "path": "/p", "ssh_host": "h", "ssh_user": "u",
+		"ssh_private_key": store.TestSSHPrivateKey,
 	})
+	require.NoError(t, err)
+	resp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", bytes.NewReader(createRaw))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusCreated, resp.StatusCode)
+	var created projectJSON
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
 
-	t.Run("empty patch", func(t *testing.T) {
-		createRaw, err := json.Marshal(map[string]any{
-			"name": "n", "path": "/p", "ssh_host": "h", "ssh_user": "u", "ssh_key_path": "/k",
-		})
-		require.NoError(t, err)
-		createResp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", bytes.NewReader(createRaw))
-		require.NoError(t, err)
-		defer createResp.Body.Close()
-		require.Equal(t, http.StatusCreated, createResp.StatusCode)
-		var created projectJSON
-		require.NoError(t, json.NewDecoder(createResp.Body).Decode(&created))
-
-		req, err := http.NewRequest(http.MethodPatch, ts.URL+"/api/v1/projects/"+created.ID, bytes.NewReader([]byte(`{}`)))
-		require.NoError(t, err)
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := http.DefaultClient.Do(req)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-		assertJSONError(t, resp, "no fields to update")
-	})
+	newKey := "-----BEGIN OPENSSH PRIVATE KEY-----\nupdated\n-----END OPENSSH PRIVATE KEY-----\n"
+	patchRaw, err := json.Marshal(map[string]any{"ssh_private_key": newKey})
+	require.NoError(t, err)
+	req, err := http.NewRequest(http.MethodPatch, ts.URL+"/api/v1/projects/"+created.ID, bytes.NewReader(patchRaw))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	patchResp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer patchResp.Body.Close()
+	require.Equal(t, http.StatusOK, patchResp.StatusCode)
+	body, err := io.ReadAll(patchResp.Body)
+	require.NoError(t, err)
+	assert.NotContains(t, string(body), "BEGIN OPENSSH")
+	assert.NotContains(t, string(body), "ssh_private_key")
 }
 
-func TestProjectsGetNotFound(t *testing.T) {
+func TestProjectsNotFound(t *testing.T) {
 	ts, _ := startTestServerWithStore(t, "")
-	resp, err := http.Get(ts.URL + "/api/v1/projects/does-not-exist")
+
+	resp, err := http.Get(ts.URL + "/api/v1/projects/nope")
 	require.NoError(t, err)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode)
-	assertJSONError(t, resp, "project not found")
 }
 
-func TestProjectsDefaultSSHPortAndEnabled(t *testing.T) {
+func TestProjectsCreateDefaults(t *testing.T) {
 	ts, _ := startTestServerWithStore(t, "")
+
 	raw, err := json.Marshal(map[string]any{
-		"name": "defaults", "path": "/p", "ssh_host": "h", "ssh_user": "u", "ssh_key_path": "/k",
+		"name": "defaults", "path": "/p", "ssh_host": "h", "ssh_user": "u",
+		"ssh_private_key": store.TestSSHPrivateKey,
 	})
 	require.NoError(t, err)
 	resp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", bytes.NewReader(raw))

@@ -9,12 +9,6 @@
   const dialog = $('#project-dialog');
   const form = $('#project-form');
   const formError = $('#form-error');
-  const keyDialog = $('#key-dialog');
-  const keyForm = $('#key-form');
-  const keyFormError = $('#key-form-error');
-  const keyStatusBadge = $('#key-status-badge');
-  const keyPathDisplay = $('#key-path-display');
-  const keyFileInput = $('#key-file');
 
   function showFlash(message, kind) {
     flash.textContent = message;
@@ -40,26 +34,6 @@
     return p.ssh_user + '@' + p.ssh_host + ':' + p.ssh_port;
   }
 
-  function showKeyFormError(message) {
-    if (!message) {
-      keyFormError.classList.add('hidden');
-      keyFormError.textContent = '';
-      return;
-    }
-    keyFormError.textContent = message;
-    keyFormError.classList.remove('hidden');
-  }
-
-  function renderKeyStatus(present) {
-    if (present) {
-      keyStatusBadge.textContent = 'configured';
-      keyStatusBadge.className = 'badge on';
-    } else {
-      keyStatusBadge.textContent = 'not configured';
-      keyStatusBadge.className = 'badge off';
-    }
-  }
-
   function renderProjects(projects) {
     if (!projects.length) {
       projectsBody.innerHTML = '<tr><td colspan="6" class="muted">No projects yet.</td></tr>';
@@ -70,7 +44,7 @@
         ? '<span class="badge on">on</span>'
         : '<span class="badge off">off</span>';
       const toggleLabel = p.enabled ? 'Disable' : 'Enable';
-      const keyBadge = p.key_present
+      const keyBadge = p.key_configured
         ? '<span class="badge on">yes</span>'
         : '<span class="badge off">no</span>';
       return (
@@ -82,7 +56,6 @@
           '<td class="key-cell">' + keyBadge + '</td>' +
           '<td class="actions">' +
             '<button type="button" class="link btn-edit">Edit</button>' +
-            '<button type="button" class="link btn-key">Key</button>' +
             '<a class="link btn-tasks" href="/tasks.html?project_id=' + encodeURIComponent(p.id) + '">Tasks</a>' +
             '<button type="button" class="link btn-toggle">' + toggleLabel + '</button>' +
           '</td>' +
@@ -108,16 +81,7 @@
     projectsBody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
     try {
       const projects = await api('/projects');
-      const withKeyStatus = await Promise.all(projects.map(async function (p) {
-        try {
-          const status = await api('/projects/' + encodeURIComponent(p.id) + '/key');
-          p.key_present = !!(status && status.present);
-        } catch (_) {
-          p.key_present = false;
-        }
-        return p;
-      }));
-      renderProjects(withKeyStatus);
+      renderProjects(projects);
     } catch (err) {
       projectsBody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load projects.</td></tr>';
       showFlash(err.message, 'error');
@@ -130,6 +94,9 @@
     form.reset();
     $('#ssh_port').value = '22';
     $('#enabled').checked = true;
+    $('#ssh_private_key').required = true;
+    $('#key-hint-create').classList.remove('hidden');
+    $('#key-hint-edit').classList.add('hidden');
     showFormError('');
     dialog.showModal();
   }
@@ -142,8 +109,10 @@
     $('#ssh_host').value = project.ssh_host;
     $('#ssh_user').value = project.ssh_user;
     $('#ssh_port').value = String(project.ssh_port || 22);
-    $('#ssh_key_path').value = project.ssh_key_path;
-    $('#enabled').checked = !!project.enabled;
+    $('#ssh_private_key').value = '';
+    $('#ssh_private_key').required = false;
+    $('#key-hint-create').classList.add('hidden');
+    $('#key-hint-edit').classList.remove('hidden');
     showFormError('');
     dialog.showModal();
   }
@@ -158,9 +127,15 @@
       ssh_host: $('#ssh_host').value.trim(),
       ssh_user: $('#ssh_user').value.trim(),
       ssh_port: parseInt($('#ssh_port').value, 10) || 22,
-      ssh_key_path: $('#ssh_key_path').value.trim(),
       enabled: $('#enabled').checked,
     };
+    const keyValue = $('#ssh_private_key').value.trim();
+    if (keyValue) {
+      body.ssh_private_key = keyValue;
+    } else if (!id) {
+      showFormError('SSH private key is required for new projects.');
+      return;
+    }
     try {
       if (id) {
         await api('/projects/' + encodeURIComponent(id), { method: 'PATCH', body: body });
@@ -173,49 +148,6 @@
       await loadProjects();
     } catch (err) {
       showFormError(err.message);
-    }
-  }
-
-  async function openKeyDialog(project) {
-    $('#key-project-id').value = project.id;
-    $('#key-project-name').textContent = project.name;
-    keyPathDisplay.textContent = project.ssh_key_path || '—';
-    keyFileInput.value = '';
-    showKeyFormError('');
-    try {
-      const status = await api('/projects/' + encodeURIComponent(project.id) + '/key');
-      renderKeyStatus(!!(status && status.present));
-    } catch (err) {
-      renderKeyStatus(false);
-      showKeyFormError(err.message);
-    }
-    keyDialog.showModal();
-  }
-
-  async function uploadKey(ev) {
-    ev.preventDefault();
-    showKeyFormError('');
-    const id = $('#key-project-id').value;
-    const file = keyFileInput.files && keyFileInput.files[0];
-    if (!file) {
-      showKeyFormError('Choose a key file to upload.');
-      return;
-    }
-    const formData = new FormData();
-    formData.append('key', file);
-    try {
-      const result = await api('/projects/' + encodeURIComponent(id) + '/key', {
-        method: 'POST',
-        body: formData,
-      });
-      renderKeyStatus(!!(result && result.present));
-      keyFileInput.value = '';
-      showFlash('SSH key uploaded.', 'ok');
-      const project = await api('/projects/' + encodeURIComponent(id));
-      keyPathDisplay.textContent = project.ssh_key_path || '—';
-      await loadProjects();
-    } catch (err) {
-      showKeyFormError(err.message);
     }
   }
 
@@ -244,14 +176,6 @@
         showFlash(err.message, 'error');
       }
     }
-    if (ev.target.classList.contains('btn-key')) {
-      try {
-        const project = await api('/projects/' + encodeURIComponent(id));
-        await openKeyDialog(project);
-      } catch (err) {
-        showFlash(err.message, 'error');
-      }
-    }
     if (ev.target.classList.contains('btn-toggle')) {
       const enabled = row.querySelector('.badge.on') !== null;
       await toggleEnabled(id, enabled);
@@ -261,9 +185,6 @@
   $('#btn-new').addEventListener('click', openCreateDialog);
   $('#btn-cancel').addEventListener('click', function () { dialog.close(); });
   form.addEventListener('submit', saveProject);
-
-  $('#key-btn-cancel').addEventListener('click', function () { keyDialog.close(); });
-  keyForm.addEventListener('submit', uploadKey);
 
   loadProjects();
 })();

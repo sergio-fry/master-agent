@@ -44,7 +44,7 @@ type patchTaskRequest struct {
 }
 
 var taskSSHFieldNames = []string{
-	"ssh_host", "ssh_user", "ssh_port", "ssh_key_path",
+	"ssh_host", "ssh_user", "ssh_port", "ssh_private_key",
 	"private_key", "ssh_private_key", "key",
 }
 

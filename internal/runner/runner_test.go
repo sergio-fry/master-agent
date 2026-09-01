@@ -15,25 +15,27 @@ import (
 	"master-agent/internal/store"
 )
 
+const testIdentityFile = "/tmp/master-agent-test-key"
+
 func sampleProject() store.Project {
 	return store.Project{
-		ID:         "proj-1",
-		Name:       "my-app",
-		Path:       "/home/dev/my-app",
-		SSHHost:    "dev-box",
-		SSHUser:    "dev",
-		SSHPort:    22,
-		SSHKeyPath: "/secrets/projects/my-app/id_ed25519",
-		Enabled:    true,
+		ID:            "proj-1",
+		Name:          "my-app",
+		Path:          "/home/dev/my-app",
+		SSHHost:       "dev-box",
+		SSHUser:       "dev",
+		SSHPort:       22,
+		SSHPrivateKey: store.TestSSHPrivateKey,
+		Enabled:       true,
 	}
 }
 
 func TestBuildSSHArgsFromProject(t *testing.T) {
-	args, err := BuildSSHArgs(sampleProject(), "touch flag", DefaultServerAliveInterval, DefaultServerAliveCountMax)
+	args, err := BuildSSHArgs(sampleProject(), testIdentityFile, "touch flag", DefaultServerAliveInterval, DefaultServerAliveCountMax)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{
-		"-i", "/secrets/projects/my-app/id_ed25519",
+		"-i", testIdentityFile,
 		"-p", "22",
 		"-o", "BatchMode=yes",
 		"-o", "IdentitiesOnly=yes",
@@ -50,14 +52,13 @@ func TestBuildSSHArgsFromProject(t *testing.T) {
 	assert.True(t, strings.HasPrefix(remote, "bash -lc "))
 	assert.Contains(t, remote, "/home/dev/my-app")
 	assert.Contains(t, remote, "touch flag")
-	// SSH options precede the remote script; never a local agent binary.
 	assert.Equal(t, "-i", args[0])
 }
 
 func TestBuildSSHArgsCustomPortAndKeepalive(t *testing.T) {
 	p := sampleProject()
 	p.SSHPort = 2222
-	args, err := BuildSSHArgs(p, "echo ok", 60, 5)
+	args, err := BuildSSHArgs(p, testIdentityFile, "echo ok", 60, 5)
 	require.NoError(t, err)
 	assert.Contains(t, args, "2222")
 	assert.Contains(t, args, "ServerAliveInterval=60")
@@ -67,7 +68,7 @@ func TestBuildSSHArgsCustomPortAndKeepalive(t *testing.T) {
 func TestBuildSSHArgsDefaultPort(t *testing.T) {
 	p := sampleProject()
 	p.SSHPort = 0
-	args, err := BuildSSHArgs(p, "true", 0, 0)
+	args, err := BuildSSHArgs(p, testIdentityFile, "true", 0, 0)
 	require.NoError(t, err)
 	assert.Equal(t, "22", args[3])
 	assert.Contains(t, args, "ServerAliveInterval=30")
@@ -75,22 +76,35 @@ func TestBuildSSHArgsDefaultPort(t *testing.T) {
 
 func TestBuildSSHArgsRequiresFields(t *testing.T) {
 	tests := []struct {
-		name string
-		mut  func(*store.Project)
+		name         string
+		mut          func(*store.Project)
+		identityFile string
 	}{
-		{"host", func(p *store.Project) { p.SSHHost = "" }},
-		{"user", func(p *store.Project) { p.SSHUser = "" }},
-		{"key", func(p *store.Project) { p.SSHKeyPath = "" }},
-		{"path", func(p *store.Project) { p.Path = "" }},
+		{"host", func(p *store.Project) { p.SSHHost = "" }, testIdentityFile},
+		{"user", func(p *store.Project) { p.SSHUser = "" }, testIdentityFile},
+		{"key", func(p *store.Project) {}, ""},
+		{"path", func(p *store.Project) { p.Path = "" }, testIdentityFile},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := sampleProject()
 			tt.mut(&p)
-			_, err := BuildSSHArgs(p, "true", 0, 0)
+			_, err := BuildSSHArgs(p, tt.identityFile, "true", 0, 0)
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestWriteTempSSHKey(t *testing.T) {
+	path, cleanup, err := WriteTempSSHKey(store.TestSSHPrivateKey)
+	require.NoError(t, err)
+	defer cleanup()
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "PRIVATE KEY")
 }
 
 func TestBuildRemoteCommandShellAndJSON(t *testing.T) {

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -20,9 +19,8 @@ import (
 )
 
 const (
-	testAPIToken     = "acceptance-test-token"
-	apiSecretsDir    = "/data/secrets"
-	defaultAPIPort   = "18080"
+	testAPIToken   = "acceptance-test-token"
+	defaultAPIPort = "18080"
 )
 
 func apiBaseURL() string {
@@ -74,14 +72,14 @@ func (c *apiClient) do(method, path string, body io.Reader, contentType string) 
 }
 
 type apiProject struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Path       string `json:"path"`
-	SSHHost    string `json:"ssh_host"`
-	SSHUser    string `json:"ssh_user"`
-	SSHPort    int    `json:"ssh_port"`
-	SSHKeyPath string `json:"ssh_key_path"`
-	Enabled    bool   `json:"enabled"`
+	ID            string `json:"id"`
+	Name          string `json:"name"`
+	Path          string `json:"path"`
+	SSHHost       string `json:"ssh_host"`
+	SSHUser       string `json:"ssh_user"`
+	SSHPort       int    `json:"ssh_port"`
+	KeyConfigured bool   `json:"key_configured"`
+	Enabled       bool   `json:"enabled"`
 }
 
 type apiTask struct {
@@ -101,10 +99,6 @@ type apiRun struct {
 	Status    string `json:"status"`
 }
 
-type apiKeyStatus struct {
-	Present bool `json:"present"`
-}
-
 type apiError struct {
 	Error string `json:"error"`
 }
@@ -120,7 +114,7 @@ func stopServe(t *testing.T, root string) {
 func startServe(t *testing.T, root, token string) {
 	t.Helper()
 	stopServe(t, root)
-	script := "mkdir -p " + apiSecretsDir + " && master-agent serve --addr 0.0.0.0:8080 --secrets-dir " + apiSecretsDir
+	script := "master-agent serve --addr 0.0.0.0:8080"
 	cmd := composeCmd(root, "exec", "-d", "-T", "master-agent", "sh", "-c", script)
 	if token != "" {
 		cmd = composeCmd(root, "exec", "-d", "-T", "-e", "MASTER_AGENT_TOKEN="+token,
@@ -148,26 +142,20 @@ func startServe(t *testing.T, root, token string) {
 	})
 }
 
-func resetAPISecrets(t *testing.T, root string) {
-	t.Helper()
-	execOnMaster(t, root, "sh", "-c", "rm -rf "+apiSecretsDir)
-}
-
 func apiScenarioEnv(t *testing.T, token string) (string, *apiClient) {
 	t.Helper()
 	root := scenarioEnv(t)
-	resetAPISecrets(t, root)
 	stopServe(t, root)
 	startServe(t, root, token)
 	t.Cleanup(func() { stopServe(t, root) })
 	return root, newAPIClient(token)
 }
 
-func fixtureSSHKey(t *testing.T) []byte {
+func fixtureSSHKey(t *testing.T) string {
 	t.Helper()
 	data, err := os.ReadFile(filepath.Join(repoRoot(t), "test/fixtures/ssh/id_ed25519"))
 	require.NoError(t, err)
-	return data
+	return string(data)
 }
 
 func (c *apiClient) createProject(t *testing.T, body map[string]any) apiProject {
@@ -179,25 +167,6 @@ func (c *apiClient) createProject(t *testing.T, body map[string]any) apiProject 
 	var p apiProject
 	require.NoError(t, json.Unmarshal(data, &p))
 	return p
-}
-
-func (c *apiClient) uploadProjectKey(t *testing.T, projectID string, key []byte) apiKeyStatus {
-	t.Helper()
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
-	part, err := w.CreateFormFile("key", "id_ed25519")
-	require.NoError(t, err)
-	_, err = part.Write(key)
-	require.NoError(t, err)
-	require.NoError(t, w.Close())
-
-	resp, data := c.do(http.MethodPost, "/api/v1/projects/"+projectID+"/key", &buf, w.FormDataContentType())
-	require.Equal(t, http.StatusOK, resp.StatusCode, "body: %s", data)
-	assert.NotContains(t, string(data), "BEGIN OPENSSH PRIVATE KEY")
-
-	var status apiKeyStatus
-	require.NoError(t, json.Unmarshal(data, &status))
-	return status
 }
 
 func (c *apiClient) createTask(t *testing.T, projectID string, body map[string]any) apiTask {
@@ -216,16 +185,17 @@ func TestScenarioAPIProjectTaskCRUD(t *testing.T) {
 	_, client := apiScenarioEnv(t, "")
 
 	created := client.createProject(t, map[string]any{
-		"name":         "api-proj",
-		"path":         workspacePath,
-		"ssh_host":     workerHost,
-		"ssh_user":     workerUser,
-		"ssh_key_path": apiSecretsDir + "/placeholder/id_ed25519",
-		"enabled":      true,
+		"name":            "api-proj",
+		"path":            workspacePath,
+		"ssh_host":        workerHost,
+		"ssh_user":        workerUser,
+		"ssh_private_key": fixtureSSHKey(t),
+		"enabled":         true,
 	})
 	require.NotEmpty(t, created.ID)
 	assert.Equal(t, "api-proj", created.Name)
 	assert.Equal(t, workerHost, created.SSHHost)
+	assert.True(t, created.KeyConfigured)
 
 	resp, listData := client.do(http.MethodGet, "/api/v1/projects", nil, "")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -277,55 +247,44 @@ func TestScenarioAPIProjectTaskCRUD(t *testing.T) {
 	assert.Equal(t, "updated prompt", gotTask.Prompt)
 }
 
-func TestScenarioAPIKeyUpload(t *testing.T) {
-	root, client := apiScenarioEnv(t, "")
+func TestScenarioAPIInlineSSHKey(t *testing.T) {
+	_, client := apiScenarioEnv(t, "")
 
 	created := client.createProject(t, map[string]any{
-		"name":         "key-proj",
-		"path":         workspacePath,
-		"ssh_host":     workerHost,
-		"ssh_user":     workerUser,
-		"ssh_key_path": apiSecretsDir + "/placeholder/id_ed25519",
+		"name":            "key-proj",
+		"path":            workspacePath,
+		"ssh_host":        workerHost,
+		"ssh_user":        workerUser,
+		"ssh_private_key": fixtureSSHKey(t),
 	})
-
-	resp, beforeData := client.do(http.MethodGet, "/api/v1/projects/"+created.ID+"/key", nil, "")
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	var before apiKeyStatus
-	require.NoError(t, json.Unmarshal(beforeData, &before))
-	assert.False(t, before.Present)
-
-	key := fixtureSSHKey(t)
-	status := client.uploadProjectKey(t, created.ID, key)
-	assert.True(t, status.Present)
-
-	keyPath := filepath.ToSlash(filepath.Join(apiSecretsDir, "projects", created.ID, "id_ed25519"))
-	out := execOnMaster(t, root, "sh", "-c", "test -f "+shellQuote(keyPath)+" && echo present")
-	assert.Equal(t, "present", out)
+	assert.True(t, created.KeyConfigured)
 
 	resp, projData := client.do(http.MethodGet, "/api/v1/projects/"+created.ID, nil, "")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	var updated apiProject
-	require.NoError(t, json.Unmarshal(projData, &updated))
-	assert.Equal(t, keyPath, updated.SSHKeyPath)
+	assert.NotContains(t, string(projData), "BEGIN OPENSSH PRIVATE KEY")
+	assert.NotContains(t, string(projData), "ssh_private_key")
 
-	resp, afterData := client.do(http.MethodGet, "/api/v1/projects/"+created.ID+"/key", nil, "")
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.NotContains(t, string(afterData), "BEGIN OPENSSH PRIVATE KEY")
-	require.NoError(t, json.Unmarshal(afterData, &status))
-	assert.True(t, status.Present)
+	patchRaw, err := json.Marshal(map[string]any{"ssh_private_key": fixtureSSHKey(t)})
+	require.NoError(t, err)
+	resp, patchData := client.do(http.MethodPatch, "/api/v1/projects/"+created.ID, bytes.NewReader(patchRaw), "application/json")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "body: %s", patchData)
+	assert.NotContains(t, string(patchData), "BEGIN OPENSSH PRIVATE KEY")
+	var updated apiProject
+	require.NoError(t, json.Unmarshal(patchData, &updated))
+	assert.True(t, updated.KeyConfigured)
 }
 
 func TestScenarioAPIRunsAndLogs(t *testing.T) {
 	root, client := apiScenarioEnv(t, "")
 
 	project := client.createProject(t, map[string]any{
-		"name":         "runs-proj",
-		"path":         workspacePath,
-		"ssh_host":     workerHost,
-		"ssh_user":     workerUser,
-		"ssh_key_path": apiSecretsDir + "/placeholder/id_ed25519",
+		"name":            "runs-proj",
+		"path":            workspacePath,
+		"ssh_host":        workerHost,
+		"ssh_user":        workerUser,
+		"ssh_private_key": fixtureSSHKey(t),
 	})
-	client.uploadProjectKey(t, project.ID, fixtureSSHKey(t))
+	assert.True(t, project.KeyConfigured)
 
 	flag := "api-run-flag"
 	task := client.createTask(t, project.ID, map[string]any{

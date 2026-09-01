@@ -52,7 +52,7 @@ func TestProjectCRUD(t *testing.T) {
 		SSHHost:    "dev-box",
 		SSHUser:    "dev",
 		SSHPort:    2222,
-		SSHKeyPath: "/secrets/projects/my-app/id_ed25519",
+		SSHPrivateKey: TestSSHPrivateKey,
 		Enabled:    true,
 	}
 	require.NoError(t, s.CreateProject(p))
@@ -67,7 +67,7 @@ func TestProjectCRUD(t *testing.T) {
 	assert.Equal(t, p.SSHHost, got.SSHHost)
 	assert.Equal(t, p.SSHUser, got.SSHUser)
 	assert.Equal(t, 2222, got.SSHPort)
-	assert.Equal(t, p.SSHKeyPath, got.SSHKeyPath)
+	assert.Equal(t, p.SSHPrivateKey, got.SSHPrivateKey)
 	assert.True(t, got.Enabled)
 
 	got.Enabled = false
@@ -90,7 +90,7 @@ func TestProjectDefaultSSHPort(t *testing.T) {
 	s, _ := openTempStore(t)
 	p := &Project{
 		Name: "x", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p))
 	got, err := s.GetProject(p.ID)
@@ -103,7 +103,7 @@ func TestTaskCRUD(t *testing.T) {
 
 	p := &Project{
 		Name: "app", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p))
 
@@ -155,7 +155,7 @@ func TestLockInsertDelete(t *testing.T) {
 
 	p := &Project{
 		Name: "app", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p))
 	task := &Task{
@@ -195,7 +195,7 @@ func TestRunInsertUpdate(t *testing.T) {
 
 	p := &Project{
 		Name: "app", Path: "/p", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p))
 	task := &Task{
@@ -244,11 +244,11 @@ func TestListRunsFiltersByProjectAndTask(t *testing.T) {
 
 	p1 := &Project{
 		Name: "app1", Path: "/p1", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	p2 := &Project{
 		Name: "app2", Path: "/p2", SSHHost: "h", SSHUser: "u",
-		SSHKeyPath: "/k", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p1))
 	require.NoError(t, s.CreateProject(p2))
@@ -306,11 +306,11 @@ func TestListAndLookupHelpers(t *testing.T) {
 
 	p1 := &Project{
 		Name: "app-a", Path: "/a", SSHHost: "h1", SSHUser: "u",
-		SSHKeyPath: "/k1", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	p2 := &Project{
 		Name: "app-b", Path: "/b", SSHHost: "h2", SSHUser: "u",
-		SSHKeyPath: "/k2", Enabled: true,
+		SSHPrivateKey: TestSSHPrivateKey, Enabled: true,
 	}
 	require.NoError(t, s.CreateProject(p1))
 	require.NoError(t, s.CreateProject(p2))

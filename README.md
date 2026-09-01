@@ -69,19 +69,12 @@ Open [http://127.0.0.1:8080](http://127.0.0.1:8080) to manage projects and tasks
 ### 2. Prepare SSH
 
 ```bash
-mkdir -p secrets/projects/my-app
-# Copy your private key (mode 600)
-cp ~/.ssh/id_ed25519 secrets/projects/my-app/id_ed25519
-chmod 600 secrets/projects/my-app/id_ed25519
-
 # Trust worker host keys (StrictHostKeyChecking=yes)
 cp ssh/known_hosts.example ssh/known_hosts
 ssh-keyscan -H worker.example.com >> ssh/known_hosts
 ```
 
-Register the key using the **in-container path**: `/secrets/projects/my-app/id_ed25519`.
-
-### 3. Register a project
+SSH private keys are stored **inline in SQLite** (via Web UI textarea or CLI). The CLI reads a local key file and saves the body into the database:
 
 ```bash
 docker compose run --rm master-agent project add \
@@ -89,10 +82,10 @@ docker compose run --rm master-agent project add \
   --path /home/worker/projects/my-app \
   --ssh-host worker.example.com \
   --ssh-user worker \
-  --ssh-key /secrets/projects/my-app/id_ed25519
+  --ssh-key ~/.ssh/id_ed25519
 ```
 
-### 4. Add a scheduled task
+Or paste the key in the Web UI project form.
 
 ```bash
 docker compose run --rm master-agent task add \
@@ -130,7 +123,7 @@ With the default Docker setup, the UI and JSON API are available at `http://127.
 |---------|-------------|
 | Projects | Create and edit remote workspaces and SSH settings |
 | Tasks | Configure schedules, commands, and prompts |
-| SSH keys | Upload keys into the secrets volume (never shown after upload) |
+| SSH keys | Paste private key inline when creating/editing a project (never shown after save) |
 | Runs | Browse history and read execution logs |
 | Status | Daemon health and active locks |
 
@@ -187,12 +180,12 @@ docker logs master-agent-prod-master-agent-1
 |--|---------------------------|----------------|
 | Port | `8080` | **`9080`** (LAN: `http://<host-ip>:9080`) |
 | Image | `master-agent:local` (build from checkout) | `master-agent:<VERSION>` (pinned tag) |
-| Data | `./data`, `./secrets` | `/opt/master-agent/data`, `/opt/master-agent/secrets` |
+| Data | `./data` | `/opt/master-agent/data` |
 | Updates | Rebuild anytime while developing | Only via `deploy/upgrade.sh` |
 
 The systemd unit uses `docker compose up --no-build --pull never` so reboots never pull or rebuild the image. Admin credentials are generated in `/opt/master-agent/.env` on install (`ADMIN_USERNAME=admin` plus a random password). Sign in at `http://<host-ip>:9080/login.html`.
 
-Before scheduling SSH work, populate `/opt/master-agent/ssh/known_hosts` and place keys under `/opt/master-agent/secrets/projects/<name>/`.
+Before scheduling SSH work, populate `/opt/master-agent/ssh/known_hosts` and register projects with inline SSH keys via Web UI or CLI.
 
 ---
 
@@ -206,8 +199,7 @@ Go binary in a minimal Docker image (OpenSSH client + SQLite). No Cursor, MCP, o
 
 | Host path | Container | Purpose |
 |-----------|-----------|---------|
-| `./data` | `/data` | SQLite database and run logs |
-| `./secrets` | `/secrets` | Per-project SSH private keys |
+| `./data` | `/data` | SQLite database, run logs, and inline SSH private keys |
 | `./ssh/known_hosts` | `/etc/ssh/ssh_known_hosts` (ro) | Host key verification |
 
 SSH keys and `known_hosts` are **runtime mounts**, never baked into the image.
