@@ -290,8 +290,13 @@ func TestScenarioAPIInlineSSHKey(t *testing.T) {
 
 	resp, projData := client.do(http.MethodGet, "/api/v1/projects/"+created.ID, nil, "")
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.NotContains(t, string(projData), "BEGIN OPENSSH PRIVATE KEY")
-	assert.NotContains(t, string(projData), "ssh_private_key")
+	assert.Contains(t, string(projData), "BEGIN OPENSSH PRIVATE KEY")
+	assert.Contains(t, string(projData), "ssh_private_key")
+
+	resp, listData := client.do(http.MethodGet, "/api/v1/projects", nil, "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.NotContains(t, string(listData), "BEGIN OPENSSH PRIVATE KEY")
+	assert.NotContains(t, string(listData), "ssh_private_key")
 
 	patchRaw, err := json.Marshal(map[string]any{"ssh_private_key": fixtureSSHKey(t)})
 	require.NoError(t, err)

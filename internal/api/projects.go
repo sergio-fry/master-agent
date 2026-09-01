@@ -10,8 +10,8 @@ import (
 	"master-agent/internal/store"
 )
 
-// projectJSON is the API representation of a Project.
-// SSH connection fields are included; private key material is never returned.
+// projectJSON is the API representation of a Project for list/create/patch responses.
+// SSH private key material is never returned on list or mutating responses.
 type projectJSON struct {
 	ID            string `json:"id"`
 	Name          string `json:"name"`
@@ -24,6 +24,12 @@ type projectJSON struct {
 	Enabled       bool   `json:"enabled"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
+}
+
+// projectDetailJSON is the single-project GET payload including the stored private key for edit forms.
+type projectDetailJSON struct {
+	projectJSON
+	SSHPrivateKey string `json:"ssh_private_key"`
 }
 
 type createProjectRequest struct {
@@ -59,6 +65,13 @@ func projectToJSON(p *store.Project) projectJSON {
 		Enabled:       p.Enabled,
 		CreatedAt:     p.CreatedAt,
 		UpdatedAt:     p.UpdatedAt,
+	}
+}
+
+func projectToDetailJSON(p *store.Project) projectDetailJSON {
+	return projectDetailJSON{
+		projectJSON:   projectToJSON(p),
+		SSHPrivateKey: p.SSHPrivateKey,
 	}
 }
 
@@ -152,7 +165,7 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 		WriteError(w, http.StatusInternalServerError, "get project failed")
 		return
 	}
-	writeJSON(w, http.StatusOK, projectToJSON(p))
+	writeJSON(w, http.StatusOK, projectToDetailJSON(p))
 }
 
 func (s *Server) handlePatchProject(w http.ResponseWriter, r *http.Request) {

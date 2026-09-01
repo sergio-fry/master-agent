@@ -72,7 +72,7 @@
         <label for="ssh_private_key">SSH private key</label>
         <textarea id="ssh_private_key" name="ssh_private_key" rows="8" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
         <p id="key-hint-create" class="hint">Paste the full private key body. It is stored in SQLite and never shown again after save.</p>
-        <p id="key-hint-edit" class="hint hidden">Leave empty to keep the existing key. Paste new key material to replace it.</p>
+        <p id="key-hint-edit" class="hint hidden">Stored key is shown when editing. Change the textarea to replace the key.</p>
 
         <div class="ssh-test-row">
           <button type="button" id="btn-test-ssh" class="secondary">Test connection</button>

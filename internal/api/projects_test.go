@@ -75,9 +75,11 @@ func TestProjectsCreateListGetPatch(t *testing.T) {
 	require.NoError(t, err)
 	defer getResp.Body.Close()
 	require.Equal(t, http.StatusOK, getResp.StatusCode)
-	var got projectJSON
-	require.NoError(t, json.NewDecoder(getResp.Body).Decode(&got))
-	assert.Equal(t, created, got)
+	var gotDetail map[string]any
+	require.NoError(t, json.NewDecoder(getResp.Body).Decode(&gotDetail))
+	assert.Equal(t, created.Name, gotDetail["name"])
+	assert.Contains(t, gotDetail, "ssh_private_key")
+	assert.Equal(t, store.TestSSHPrivateKey, gotDetail["ssh_private_key"])
 
 	patchRaw, err := json.Marshal(map[string]any{"enabled": false})
 	require.NoError(t, err)

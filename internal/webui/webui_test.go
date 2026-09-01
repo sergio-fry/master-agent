@@ -89,6 +89,7 @@ func TestHandlerIndexHasInlineKeyField(t *testing.T) {
 	assert.Contains(t, s, "ssh_private_key")
 	assert.Contains(t, s, "<textarea")
 	assert.Contains(t, s, "never shown")
+	assert.Contains(t, s, "Stored key")
 	assert.NotContains(t, s, "type=\"file\"")
 }
 

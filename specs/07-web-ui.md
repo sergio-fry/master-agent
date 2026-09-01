@@ -7,7 +7,7 @@ This does **not** change SSH execution semantics. The UI configures orchestratio
 ## Goals
 
 - List / create / edit / enable-disable **Projects** (path + SSH host/user/port + key path).
-- Upload / replace **SSH private keys** inline in the project (stored in SQLite); never display key material after save.
+- Upload / replace **SSH private keys** inline in the project (stored in SQLite); list responses show `key_configured` only; **GET single project** returns `ssh_private_key` for edit forms.
 - List / create / edit / enable-disable **Tasks** (interval, command, prompt only — no SSH fields).
 - List **Runs** (filter by project/task/status) and view **run logs** (`log_path` / captured output).
 - Read-only **daemon status**: tick config, whether a global run / project lock is active (best-effort).
@@ -54,7 +54,7 @@ Requests get `X-Request-ID` (echoed from client or generated). Structured reques
 ## UI screens
 
 1. **Projects** — table + create/edit form (SSH fields + path + enabled).
-2. **Project key** — upload control; show “key configured” / path, never the private key.
+2. **Project key** — textarea on create/edit; single-project GET returns key material for pre-fill; list never exposes keys.
 3. **Tasks** — per-project list + form (name, interval, command, prompt, enabled).
 4. **Runs** — filterable table; detail drawer with metadata + log viewer (tail / full text with size limit).
 5. **Status** — small header or page: DB path, optional active run/lock.

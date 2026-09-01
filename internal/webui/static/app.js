@@ -179,10 +179,11 @@
     $('#ssh_host').value = project.ssh_host;
     $('#ssh_user').value = project.ssh_user;
     $('#ssh_port').value = String(project.ssh_port || 22);
-    $('#ssh_private_key').value = '';
+    $('#ssh_private_key').value = project.ssh_private_key || '';
     $('#ssh_private_key').required = false;
     $('#key-hint-create').classList.add('hidden');
     $('#key-hint-edit').classList.remove('hidden');
+    $('#key-hint-edit').textContent = 'Stored key is shown below. Edit to replace, or leave as-is to keep the current key.';
     clearSSHTestStatus();
     showFormError('');
     dialog.showModal();
