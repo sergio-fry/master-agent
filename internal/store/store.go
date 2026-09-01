@@ -16,7 +16,7 @@ import (
 //go:embed schema.sql
 var schemaFS embed.FS
 
-const schemaVersion = 3
+const schemaVersion = 4
 
 // Store is SQLite persistence for projects, tasks, locks, and runs.
 type Store struct {
@@ -106,6 +106,11 @@ func (s *Store) migrate() error {
 		fallthrough
 	case 2:
 		if err := s.migrateV2ToV3(); err != nil {
+			return err
+		}
+		fallthrough
+	case 3:
+		if err := s.migrateV3ToV4(); err != nil {
 			return err
 		}
 	default:

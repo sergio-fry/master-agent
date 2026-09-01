@@ -9,6 +9,7 @@ type Project struct {
 	SSHUser    string
 	SSHPort        int
 	SSHPrivateKey  string
+	SSHHostKey     string // "ssh-ed25519 AAAA..." public key line for known_hosts
 	Enabled        bool
 	CreatedAt  string
 	UpdatedAt  string

@@ -3,12 +3,13 @@ package runner
 import (
 	"fmt"
 	"os"
-	"strings"
+
+	"master-agent/internal/store"
 )
 
 // WriteTempSSHKey writes private key material to a temp file (mode 0600) for OpenSSH -i.
 func WriteTempSSHKey(key string) (path string, cleanup func(), err error) {
-	k := strings.TrimSpace(key)
+	k := store.NormalizeSSHPrivateKey(key)
 	if k == "" {
 		return "", nil, fmt.Errorf("project ssh private key is required")
 	}

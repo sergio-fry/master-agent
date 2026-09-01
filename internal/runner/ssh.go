@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"master-agent/internal/placeholder"
@@ -41,8 +42,20 @@ func (r *SSHRunner) Run(ctx context.Context, project store.Project, command stri
 	}
 	defer cleanup()
 
+	var khCleanup func()
+	knownHostsFile := ""
+	if strings.TrimSpace(project.SSHHostKey) != "" {
+		var khPath string
+		khPath, khCleanup, err = WriteTempKnownHosts(project, project.SSHHostKey)
+		if err != nil {
+			return Result{}, err
+		}
+		defer khCleanup()
+		knownHostsFile = khPath
+	}
+
 	interval, countMax := r.keepalive()
-	args, err := BuildSSHArgs(project, keyPath, command, interval, countMax)
+	args, err := BuildSSHArgs(project, keyPath, command, interval, countMax, knownHostsFile)
 	if err != nil {
 		return Result{}, err
 	}
@@ -120,7 +133,7 @@ func exitStatus(ee *exec.ExitError) int {
 
 // BuildSSHArgs returns OpenSSH client arguments (without the binary name)
 // for the given project and already-substituted command.
-func BuildSSHArgs(project store.Project, identityFile, command string, aliveInterval, aliveCountMax int) ([]string, error) {
+func BuildSSHArgs(project store.Project, identityFile, command string, aliveInterval, aliveCountMax int, knownHostsFile string) ([]string, error) {
 	if project.SSHHost == "" {
 		return nil, fmt.Errorf("project ssh_host is required")
 	}
@@ -151,7 +164,7 @@ func BuildSSHArgs(project store.Project, identityFile, command string, aliveInte
 		aliveCountMax = DefaultServerAliveCountMax
 	}
 
-	return []string{
+	args := []string{
 		"-i", identityFile,
 		"-p", fmt.Sprintf("%d", port),
 		"-o", "BatchMode=yes",
@@ -159,9 +172,18 @@ func BuildSSHArgs(project store.Project, identityFile, command string, aliveInte
 		"-o", "StrictHostKeyChecking=yes",
 		"-o", fmt.Sprintf("ServerAliveInterval=%d", aliveInterval),
 		"-o", fmt.Sprintf("ServerAliveCountMax=%d", aliveCountMax),
+	}
+	if knownHostsFile != "" {
+		args = append(args,
+			"-o", "UserKnownHostsFile="+knownHostsFile,
+			"-o", "GlobalKnownHostsFile=/dev/null",
+		)
+	}
+	args = append(args,
 		fmt.Sprintf("%s@%s", project.SSHUser, project.SSHHost),
 		remote,
-	}, nil
+	)
+	return args, nil
 }
 
 // BuildRemoteCommand builds the remote shell snippet: cd into project path, then run command.

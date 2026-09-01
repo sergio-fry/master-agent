@@ -79,6 +79,7 @@ type apiProject struct {
 	SSHUser       string `json:"ssh_user"`
 	SSHPort       int    `json:"ssh_port"`
 	KeyConfigured bool   `json:"key_configured"`
+	HostKeyPinned bool   `json:"host_key_pinned"`
 	Enabled       bool   `json:"enabled"`
 }
 
@@ -247,6 +248,34 @@ func TestScenarioAPIProjectTaskCRUD(t *testing.T) {
 	assert.Equal(t, "updated prompt", gotTask.Prompt)
 }
 
+func TestScenarioAPISSHConnectionTest(t *testing.T) {
+	_, client := apiScenarioEnv(t, "")
+
+	created := client.createProject(t, map[string]any{
+		"name":            "ssh-test-proj",
+		"path":            workspacePath,
+		"ssh_host":        workerHost,
+		"ssh_user":        workerUser,
+		"ssh_private_key": fixtureSSHKey(t),
+	})
+	assert.False(t, created.HostKeyPinned)
+
+	resp, data := client.do(http.MethodPost, "/api/v1/projects/"+created.ID+"/ssh/test", nil, "")
+	require.Equal(t, http.StatusOK, resp.StatusCode, "body: %s", data)
+	var testResult map[string]any
+	require.NoError(t, json.Unmarshal(data, &testResult))
+	assert.Equal(t, true, testResult["ok"])
+	assert.NotEmpty(t, testResult["host_key_fingerprint"])
+	assert.Equal(t, true, testResult["host_key_pinned"])
+	assert.NotContains(t, string(data), "BEGIN OPENSSH")
+
+	resp, projData := client.do(http.MethodGet, "/api/v1/projects/"+created.ID, nil, "")
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var updated apiProject
+	require.NoError(t, json.Unmarshal(projData, &updated))
+	assert.True(t, updated.HostKeyPinned)
+}
+
 func TestScenarioAPIInlineSSHKey(t *testing.T) {
 	_, client := apiScenarioEnv(t, "")
 
@@ -333,6 +362,12 @@ func TestScenarioAPIRunsAndLogs(t *testing.T) {
 	assert.Contains(t, string(logData), "acceptance log line")
 
 	assert.True(t, workspaceFlagOnMaster(t, root, "/workspace", flag))
+}
+
+func resetAPISecrets(t testing.TB, root string) {
+	t.Helper()
+	// Token-only auth: no admin session env in the acceptance compose stack.
+	_ = root
 }
 
 func TestScenarioAPIAuthRejection(t *testing.T) {

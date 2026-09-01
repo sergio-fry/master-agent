@@ -34,8 +34,11 @@ MCP, Cursor skills, API keys — только на worker (`~/.cursor/`, shell p
 
 - `BatchMode=yes` — без интерактивного ввода пароля
 - `IdentitiesOnly=yes`
-- `StrictHostKeyChecking=yes` (known_hosts смонтирован заранее)
+- `StrictHostKeyChecking=yes`
+- `UserKnownHostsFile` — per-project temp file when `Project.ssh_host_key` pinned (from SSH test); иначе системный `/etc/ssh/ssh_known_hosts`
 - ServerAliveInterval / ServerAliveCountMax — для длинных агентов
+
+**Host key pinning:** оператор вызывает `POST /api/v1/projects/{id}/ssh/test` (или draft `POST /api/v1/ssh/test`). Успешный тест сохраняет host public key в `Project.ssh_host_key`. Runner материализует однострочный known_hosts во временный файл на каждый SSH-вызов; глобальный known_hosts не требуется после первого pin. Смена host key после pin → явная ошибка при test/run.
 
 **Концептуальный вызов:**
 

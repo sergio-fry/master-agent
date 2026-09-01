@@ -41,7 +41,8 @@ REST JSON under `/api/v1`:
 
 | Area | Endpoints (sketch) |
 |------|-------------------|
-| Projects | `GET/POST /projects`, `GET/PATCH /projects/{id}` |
+| Projects | `GET/POST /projects`, `GET/PATCH /projects/{id}`, `POST /projects/{id}/ssh/test` |
+| SSH test (draft) | `POST /ssh/test` — проверка полей до сохранения project |
 | Keys | `POST /projects/{id}/key` (multipart); `GET` returns `{present: bool}` only |
 | Tasks | `GET/POST /projects/{id}/tasks`, `GET/PATCH /tasks/{id}` |
 | Runs | `GET /runs?project_id=&task_id=&status=`, `GET /runs/{id}`, `GET /runs/{id}/log` |
@@ -64,7 +65,7 @@ UI tech (MVP): server-rendered or embedded static assets from the Go binary (no 
 
 - Publish port when using compose profile / `serve`.
 - Secrets volume writable by the API process for key upload (today `:ro` for daemon-only — Web UI may need `:rw` on `/secrets` or a dedicated write path documented in compose).
-- known_hosts remains operator-managed (upload of known_hosts can be later).
+- known_hosts volume optional when projects use pinned host keys from SSH test; legacy setups may still mount `/etc/ssh/ssh_known_hosts`.
 
 ## Testing
 

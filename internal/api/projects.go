@@ -20,6 +20,7 @@ type projectJSON struct {
 	SSHUser       string `json:"ssh_user"`
 	SSHPort       int    `json:"ssh_port"`
 	KeyConfigured bool   `json:"key_configured"`
+	HostKeyPinned bool   `json:"host_key_pinned"`
 	Enabled       bool   `json:"enabled"`
 	CreatedAt     string `json:"created_at"`
 	UpdatedAt     string `json:"updated_at"`
@@ -54,6 +55,7 @@ func projectToJSON(p *store.Project) projectJSON {
 		SSHUser:       p.SSHUser,
 		SSHPort:       p.SSHPort,
 		KeyConfigured: p.KeyConfigured(),
+		HostKeyPinned: p.HostKeyPinned(),
 		Enabled:       p.Enabled,
 		CreatedAt:     p.CreatedAt,
 		UpdatedAt:     p.UpdatedAt,
@@ -99,7 +101,7 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	req.Path = strings.TrimSpace(req.Path)
 	req.SSHHost = strings.TrimSpace(req.SSHHost)
 	req.SSHUser = strings.TrimSpace(req.SSHUser)
-	req.SSHPrivateKey = strings.TrimSpace(req.SSHPrivateKey)
+	req.SSHPrivateKey = store.NormalizeSSHPrivateKey(req.SSHPrivateKey)
 
 	if err := validateCreateProject(req); err != nil {
 		WriteError(w, http.StatusBadRequest, err.Error())
@@ -250,7 +252,7 @@ func applyProjectPatch(p *store.Project, req patchProjectRequest) error {
 		p.SSHUser = v
 	}
 	if req.SSHPrivateKey != nil {
-		v := strings.TrimSpace(*req.SSHPrivateKey)
+		v := store.NormalizeSSHPrivateKey(*req.SSHPrivateKey)
 		if err := store.ValidateSSHPrivateKey(v); err != nil {
 			return err
 		}

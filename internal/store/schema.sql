@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS projects (
     ssh_user TEXT NOT NULL,
     ssh_port INTEGER NOT NULL DEFAULT 22,
     ssh_private_key TEXT NOT NULL DEFAULT '',
+    ssh_host_key TEXT NOT NULL DEFAULT '',
     enabled INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

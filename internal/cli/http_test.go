@@ -77,10 +77,14 @@ func TestDaemonHTTPAddrDoesNotBlockTick(t *testing.T) {
 	}
 	require.NoError(t, d.Tick(ctx))
 
-	resp, err := http.Get("http://" + addr + "/api/v1/status")
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Eventually(t, func() bool {
+		resp, err := http.Get("http://" + addr + "/api/v1/status")
+		if err != nil {
+			return false
+		}
+		defer resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 3*time.Second, 25*time.Millisecond)
 }
 
 func TestStartHTTPServerServesUI(t *testing.T) {

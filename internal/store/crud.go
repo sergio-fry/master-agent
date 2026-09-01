@@ -27,9 +27,9 @@ func (s *Store) CreateProject(p *Project) error {
 
 	_, err := s.db.Exec(`
 		INSERT INTO projects (
-			id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, enabled, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, p.Path, p.SSHHost, p.SSHUser, p.SSHPort, p.SSHPrivateKey,
+			id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, ssh_host_key, enabled, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, p.Path, p.SSHHost, p.SSHUser, p.SSHPort, p.SSHPrivateKey, p.SSHHostKey,
 		boolToInt(p.Enabled), p.CreatedAt, p.UpdatedAt,
 	)
 	if err != nil {
@@ -41,13 +41,13 @@ func (s *Store) CreateProject(p *Project) error {
 // GetProject returns a project by id.
 func (s *Store) GetProject(id string) (*Project, error) {
 	row := s.db.QueryRow(`
-		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, enabled, created_at, updated_at
+		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, ssh_host_key, enabled, created_at, updated_at
 		FROM projects WHERE id = ?`, id)
 
 	var p Project
 	var enabled int
 	err := row.Scan(
-		&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey,
+		&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey, &p.SSHHostKey,
 		&enabled, &p.CreatedAt, &p.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -66,9 +66,9 @@ func (s *Store) UpdateProject(p *Project) error {
 	res, err := s.db.Exec(`
 		UPDATE projects SET
 			name = ?, path = ?, ssh_host = ?, ssh_user = ?, ssh_port = ?,
-			ssh_private_key = ?, enabled = ?, updated_at = ?
+			ssh_private_key = ?, ssh_host_key = ?, enabled = ?, updated_at = ?
 		WHERE id = ?`,
-		p.Name, p.Path, p.SSHHost, p.SSHUser, p.SSHPort, p.SSHPrivateKey,
+		p.Name, p.Path, p.SSHHost, p.SSHUser, p.SSHPort, p.SSHPrivateKey, p.SSHHostKey,
 		boolToInt(p.Enabled), p.UpdatedAt, p.ID,
 	)
 	if err != nil {
@@ -87,7 +87,7 @@ func (s *Store) UpdateProject(p *Project) error {
 // ListProjects returns all projects ordered by name.
 func (s *Store) ListProjects() ([]Project, error) {
 	rows, err := s.db.Query(`
-		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, enabled, created_at, updated_at
+		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, ssh_host_key, enabled, created_at, updated_at
 		FROM projects ORDER BY name, id`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
@@ -99,7 +99,7 @@ func (s *Store) ListProjects() ([]Project, error) {
 		var p Project
 		var enabled int
 		if err := rows.Scan(
-			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey,
+			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey, &p.SSHHostKey,
 			&enabled, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan project: %w", err)
@@ -117,7 +117,7 @@ func (s *Store) ListProjects() ([]Project, error) {
 // If multiple rows match, returns an error.
 func (s *Store) GetProjectByName(name string) (*Project, error) {
 	rows, err := s.db.Query(`
-		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, enabled, created_at, updated_at
+		SELECT id, name, path, ssh_host, ssh_user, ssh_port, ssh_private_key, ssh_host_key, enabled, created_at, updated_at
 		FROM projects WHERE name = ? ORDER BY created_at, id`, name)
 	if err != nil {
 		return nil, fmt.Errorf("get project by name: %w", err)
@@ -129,7 +129,7 @@ func (s *Store) GetProjectByName(name string) (*Project, error) {
 		var p Project
 		var enabled int
 		if err := rows.Scan(
-			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey,
+			&p.ID, &p.Name, &p.Path, &p.SSHHost, &p.SSHUser, &p.SSHPort, &p.SSHPrivateKey, &p.SSHHostKey,
 			&enabled, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan project: %w", err)

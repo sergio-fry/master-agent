@@ -17,6 +17,7 @@ Master-agent **не моделирует очереди, issue, статусы �
 | `ssh_user` | TEXT | yes | Пользователь SSH |
 | `ssh_port` | INTEGER | yes | Порт SSH (default: 22) |
 | `ssh_private_key` | TEXT | yes | Тело private key (PEM/OpenSSH); хранится в SQLite, не отдаётся через API |
+| `ssh_host_key` | TEXT | no | Pinned host public key (`ssh-ed25519 AAAA…`); задаётся через SSH test |
 | `enabled` | INTEGER (0/1) | yes | Участвует ли в scheduling (default: 1) |
 | `created_at` | TEXT (ISO8601) | yes | |
 | `updated_at` | TEXT (ISO8601) | yes | |

@@ -31,7 +31,7 @@ func sampleProject() store.Project {
 }
 
 func TestBuildSSHArgsFromProject(t *testing.T) {
-	args, err := BuildSSHArgs(sampleProject(), testIdentityFile, "touch flag", DefaultServerAliveInterval, DefaultServerAliveCountMax)
+	args, err := BuildSSHArgs(sampleProject(), testIdentityFile, "touch flag", DefaultServerAliveInterval, DefaultServerAliveCountMax, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{
@@ -58,7 +58,7 @@ func TestBuildSSHArgsFromProject(t *testing.T) {
 func TestBuildSSHArgsCustomPortAndKeepalive(t *testing.T) {
 	p := sampleProject()
 	p.SSHPort = 2222
-	args, err := BuildSSHArgs(p, testIdentityFile, "echo ok", 60, 5)
+	args, err := BuildSSHArgs(p, testIdentityFile, "echo ok", 60, 5, "")
 	require.NoError(t, err)
 	assert.Contains(t, args, "2222")
 	assert.Contains(t, args, "ServerAliveInterval=60")
@@ -68,7 +68,7 @@ func TestBuildSSHArgsCustomPortAndKeepalive(t *testing.T) {
 func TestBuildSSHArgsDefaultPort(t *testing.T) {
 	p := sampleProject()
 	p.SSHPort = 0
-	args, err := BuildSSHArgs(p, testIdentityFile, "true", 0, 0)
+	args, err := BuildSSHArgs(p, testIdentityFile, "true", 0, 0, "")
 	require.NoError(t, err)
 	assert.Equal(t, "22", args[3])
 	assert.Contains(t, args, "ServerAliveInterval=30")
@@ -89,7 +89,7 @@ func TestBuildSSHArgsRequiresFields(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			p := sampleProject()
 			tt.mut(&p)
-			_, err := BuildSSHArgs(p, tt.identityFile, "true", 0, 0)
+			_, err := BuildSSHArgs(p, tt.identityFile, "true", 0, 0, "")
 			require.Error(t, err)
 		})
 	}

@@ -19,7 +19,25 @@ func ValidateSSHPrivateKey(key string) error {
 	return nil
 }
 
+// NormalizeSSHPrivateKey trims surrounding whitespace and ensures a trailing newline
+// so OpenSSH/libcrypto can parse PEM/OpenSSH private key material reliably.
+func NormalizeSSHPrivateKey(key string) string {
+	k := strings.TrimSpace(key)
+	if k == "" {
+		return ""
+	}
+	if !strings.HasSuffix(k, "\n") {
+		k += "\n"
+	}
+	return k
+}
+
 // KeyConfigured reports whether the project has inline SSH key material.
 func (p *Project) KeyConfigured() bool {
 	return strings.TrimSpace(p.SSHPrivateKey) != ""
+}
+
+// HostKeyPinned reports whether the project has a pinned SSH host public key.
+func (p *Project) HostKeyPinned() bool {
+	return strings.TrimSpace(p.SSHHostKey) != ""
 }
