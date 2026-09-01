@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>master-agent — Login</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="login-page">
+  <main class="login-card">
+    <h1>master-agent</h1>
+    <p class="muted">Sign in to manage projects and tasks.</p>
+
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <div id="login-error" class="form-error hidden"></div>
+
+      <button type="submit" class="primary login-submit">Sign in</button>
+    </form>
+  </main>
+
+  <script src="/login.js"></script>
+</body>
+</html>

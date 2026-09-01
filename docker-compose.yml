@@ -11,8 +11,8 @@
 #
 # HTTP API (Web UI milestone):
 #   - Port 8080 is published when daemon runs with --http-addr (default command).
-#   - Set MASTER_AGENT_TOKEN when exposing HTTP beyond a trusted network; clients
-#     must send Authorization: Bearer <token>.
+#   - Set ADMIN_USERNAME + ADMIN_PASSWORD when exposing HTTP beyond a trusted network.
+#   - Optional MASTER_AGENT_TOKEN for Bearer API clients; optional SESSION_SECRET / SESSION_TTL.
 #   - ./secrets is mounted read-write so POST /api/v1/projects/{id}/key can store keys.
 #   - For scheduler-only (no API), omit --http-addr and mount ./secrets:ro instead.
 
@@ -26,7 +26,9 @@ services:
     environment:
       TICK_INTERVAL: "30s"
       # Uncomment when HTTP is reachable outside localhost:
-      # MASTER_AGENT_TOKEN: "change-me"
+      # ADMIN_USERNAME: "admin"
+      # ADMIN_PASSWORD: "change-me"
+      # SESSION_SECRET: "long-random-string"
     volumes:
       # SQLite DB + run logs (default --db /data/master-agent.db)
       - ./data:/data

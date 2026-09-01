@@ -14,10 +14,8 @@
       <a href="/tasks.html">Tasks</a>
       <span class="active">Runs</span>
     </nav>
-    <div id="auth-panel" class="auth-panel hidden">
-      <label for="token-input">API token</label>
-      <input id="token-input" type="password" placeholder="Bearer token" autocomplete="off">
-      <button type="button" id="token-save">Save</button>
+    <div class="header-actions">
+      <button type="button" id="btn-logout" class="link">Log out</button>
     </div>
   </header>
 
@@ -91,6 +89,7 @@
     </dialog>
   </main>
 
+  <script src="/auth.js"></script>
   <script src="/runs.js"></script>
 </body>
 </html>

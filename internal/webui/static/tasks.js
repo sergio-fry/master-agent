@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const TOKEN_KEY = 'master_agent_token';
+  const api = window.MAAuth.api;
 
   const $ = (sel) => document.querySelector(sel);
   const projectSelect = $('#project-select');
@@ -10,20 +10,7 @@
   const dialog = $('#task-dialog');
   const form = $('#task-form');
   const formError = $('#form-error');
-  const authPanel = $('#auth-panel');
   const btnNew = $('#btn-new');
-
-  function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY) || '';
-  }
-
-  function setToken(value) {
-    if (value) {
-      sessionStorage.setItem(TOKEN_KEY, value);
-    } else {
-      sessionStorage.removeItem(TOKEN_KEY);
-    }
-  }
 
   function showFlash(message, kind) {
     flash.textContent = message;
@@ -43,32 +30,6 @@
     }
     formError.textContent = message;
     formError.classList.remove('hidden');
-  }
-
-  async function api(path, options) {
-    const opts = Object.assign({ headers: {} }, options || {});
-    const token = getToken();
-    if (token) {
-      opts.headers['Authorization'] = 'Bearer ' + token;
-    }
-    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(opts.body);
-    }
-    const resp = await fetch('/api/v1' + path, opts);
-    let data = null;
-    const ct = resp.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      data = await resp.json();
-    }
-    if (resp.status === 401) {
-      authPanel.classList.remove('hidden');
-      throw new Error((data && data.error) || 'Unauthorized — enter API token above');
-    }
-    if (!resp.ok) {
-      throw new Error((data && data.error) || ('Request failed: ' + resp.status));
-    }
-    return data;
   }
 
   function escapeHtml(s) {
@@ -273,12 +234,5 @@
   $('#btn-cancel').addEventListener('click', function () { dialog.close(); });
   form.addEventListener('submit', saveTask);
 
-  $('#token-save').addEventListener('click', function () {
-    setToken($('#token-input').value.trim());
-    authPanel.classList.add('hidden');
-    loadProjects();
-  });
-
-  $('#token-input').value = getToken();
   loadProjects();
 })();

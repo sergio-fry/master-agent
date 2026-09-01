@@ -36,6 +36,7 @@ func newAPIServer(s *store.Store, secretsDir string) *api.Server {
 		Store:      s,
 		SecretsDir: secretsDir,
 		Token:      api.TokenFromEnv(),
+		Auth:       api.AuthFromEnv(),
 		Logger:     slog.Default(),
 	})
 }

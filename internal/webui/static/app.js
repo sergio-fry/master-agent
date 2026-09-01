@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const TOKEN_KEY = 'master_agent_token';
+  const api = window.MAAuth.api;
 
   const $ = (sel) => document.querySelector(sel);
   const projectsBody = $('#projects-body');
@@ -9,25 +9,12 @@
   const dialog = $('#project-dialog');
   const form = $('#project-form');
   const formError = $('#form-error');
-  const authPanel = $('#auth-panel');
   const keyDialog = $('#key-dialog');
   const keyForm = $('#key-form');
   const keyFormError = $('#key-form-error');
   const keyStatusBadge = $('#key-status-badge');
   const keyPathDisplay = $('#key-path-display');
   const keyFileInput = $('#key-file');
-
-  function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY) || '';
-  }
-
-  function setToken(value) {
-    if (value) {
-      sessionStorage.setItem(TOKEN_KEY, value);
-    } else {
-      sessionStorage.removeItem(TOKEN_KEY);
-    }
-  }
 
   function showFlash(message, kind) {
     flash.textContent = message;
@@ -47,32 +34,6 @@
     }
     formError.textContent = message;
     formError.classList.remove('hidden');
-  }
-
-  async function api(path, options) {
-    const opts = Object.assign({ headers: {} }, options || {});
-    const token = getToken();
-    if (token) {
-      opts.headers['Authorization'] = 'Bearer ' + token;
-    }
-    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(opts.body);
-    }
-    const resp = await fetch('/api/v1' + path, opts);
-    let data = null;
-    const ct = resp.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      data = await resp.json();
-    }
-    if (resp.status === 401) {
-      authPanel.classList.remove('hidden');
-      throw new Error((data && data.error) || 'Unauthorized — enter API token above');
-    }
-    if (!resp.ok) {
-      throw new Error((data && data.error) || ('Request failed: ' + resp.status));
-    }
-    return data;
   }
 
   function sshSummary(p) {
@@ -97,28 +58,6 @@
       keyStatusBadge.textContent = 'not configured';
       keyStatusBadge.className = 'badge off';
     }
-  }
-
-  async function apiMultipart(path, formData) {
-    const opts = { method: 'POST', body: formData, headers: {} };
-    const token = getToken();
-    if (token) {
-      opts.headers['Authorization'] = 'Bearer ' + token;
-    }
-    const resp = await fetch('/api/v1' + path, opts);
-    let data = null;
-    const ct = resp.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      data = await resp.json();
-    }
-    if (resp.status === 401) {
-      authPanel.classList.remove('hidden');
-      throw new Error((data && data.error) || 'Unauthorized — enter API token above');
-    }
-    if (!resp.ok) {
-      throw new Error((data && data.error) || ('Request failed: ' + resp.status));
-    }
-    return data;
   }
 
   function renderProjects(projects) {
@@ -265,7 +204,10 @@
     const formData = new FormData();
     formData.append('key', file);
     try {
-      const result = await apiMultipart('/projects/' + encodeURIComponent(id) + '/key', formData);
+      const result = await api('/projects/' + encodeURIComponent(id) + '/key', {
+        method: 'POST',
+        body: formData,
+      });
       renderKeyStatus(!!(result && result.present));
       keyFileInput.value = '';
       showFlash('SSH key uploaded.', 'ok');
@@ -323,12 +265,5 @@
   $('#key-btn-cancel').addEventListener('click', function () { keyDialog.close(); });
   keyForm.addEventListener('submit', uploadKey);
 
-  $('#token-save').addEventListener('click', function () {
-    setToken($('#token-input').value.trim());
-    authPanel.classList.add('hidden');
-    loadProjects();
-  });
-
-  $('#token-input').value = getToken();
   loadProjects();
 })();

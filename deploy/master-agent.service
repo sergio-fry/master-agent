@@ -1,0 +1,17 @@
+[Unit]
+Description=Master Agent orchestrator (Docker)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/master-agent
+EnvironmentFile=-/opt/master-agent/.env
+ExecStart=/usr/bin/docker compose up -d --no-build --pull never
+ExecStop=/usr/bin/docker compose down
+ExecReload=/usr/bin/docker compose up -d --no-build --force-recreate --pull never
+
+[Install]
+WantedBy=multi-user.target

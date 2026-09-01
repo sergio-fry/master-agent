@@ -31,7 +31,7 @@ func TestHandlerServesStaticAssets(t *testing.T) {
 	ts := httptest.NewServer(Handler())
 	t.Cleanup(ts.Close)
 
-	for _, path := range []string{"/app.js", "/tasks.js", "/runs.js", "/style.css", "/tasks.html", "/runs.html"} {
+	for _, path := range []string{"/app.js", "/auth.js", "/login.js", "/tasks.js", "/runs.js", "/style.css", "/tasks.html", "/runs.html", "/login.html"} {
 		t.Run(path, func(t *testing.T) {
 			resp, err := http.Get(ts.URL + path)
 			require.NoError(t, err)
@@ -55,7 +55,8 @@ func TestHandlerAppJSHasAPIClient(t *testing.T) {
 	require.NoError(t, err)
 	s := string(body)
 	assert.True(t, strings.Contains(s, "'/projects'"))
-	assert.True(t, strings.Contains(s, "Authorization"))
+	assert.True(t, strings.Contains(s, "MAAuth"))
+	assert.NotContains(t, s, "sessionStorage")
 }
 
 func TestHandlerIndexHasKeyUploadUI(t *testing.T) {

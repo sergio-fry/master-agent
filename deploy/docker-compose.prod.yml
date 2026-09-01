@@ -1,0 +1,30 @@
+# Production / system install compose for /opt/master-agent.
+# Installed by deploy/install.sh — do not use build: here; image tag is pinned via VERSION.
+#
+# LAN access: http://<host-ip>:9080
+# Manage via: systemctl {start|stop|status|reload} master-agent
+
+name: master-agent-prod
+
+services:
+  master-agent:
+    image: master-agent:${VERSION}
+    restart: unless-stopped
+    ports:
+      - "9080:8080"
+    environment:
+      TICK_INTERVAL: "${TICK_INTERVAL:-30s}"
+      ADMIN_USERNAME: "${ADMIN_USERNAME}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+      SESSION_SECRET: "${SESSION_SECRET}"
+      MASTER_AGENT_TOKEN: "${MASTER_AGENT_TOKEN:-}"
+    volumes:
+      - /opt/master-agent/data:/data
+      - /opt/master-agent/secrets:/secrets
+      - /opt/master-agent/ssh/known_hosts:/etc/ssh/ssh_known_hosts:ro
+    command: ["daemon", "--http-addr", "0.0.0.0:8080"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

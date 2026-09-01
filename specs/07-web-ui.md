@@ -23,16 +23,17 @@ This does **not** change SSH execution semantics. The UI configures orchestratio
 
 - Command: `master-agent serve` — HTTP API + static/embedded UI against `--db`.
 - Optional: `master-agent daemon --http-addr :8080` mounts the same server in-process so one container serves both scheduler and UI.
-- Default bind: `127.0.0.1:8080` (override via flag/env). Docker Compose may publish the port; protect with `MASTER_AGENT_TOKEN` (Bearer) when exposed beyond localhost.
+- Default bind: `127.0.0.1:8080` (override via flag/env). Docker Compose may publish the port; protect with admin login when exposed beyond localhost.
 
-## Auth (MVP)
+## Auth
 
 | Mode | Behavior |
 |------|----------|
-| No token configured | Allow only loopback (or document as trusted network) |
-| `MASTER_AGENT_TOKEN` set | Require `Authorization: Bearer <token>` on API and UI session |
+| No credentials configured | Open API (bind to loopback or trusted network) |
+| `ADMIN_USERNAME` + `ADMIN_PASSWORD` set | Web UI login form; session cookie on `/api/v1/*`; optional `MASTER_AGENT_TOKEN` still accepted for API clients |
+| `MASTER_AGENT_TOKEN` only (legacy) | Require `Authorization: Bearer <token>` on `/api/v1/*` |
 
-No per-user accounts in this milestone.
+Single admin account; no per-user RBAC in this milestone. Session TTL defaults to 7 days (`SESSION_TTL` env).
 
 ## API surface (conceptual)
 

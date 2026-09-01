@@ -27,17 +27,20 @@ type Config struct {
 	// SecretsDir is the base directory for uploaded SSH private keys (e.g. /secrets).
 	// Keys are stored at {SecretsDir}/projects/{projectID}/id_ed25519.
 	SecretsDir string
-	// Token, if non-empty, requires Authorization: Bearer <token> on /api/v1.
-	// Typically loaded from MASTER_AGENT_TOKEN via TokenFromEnv.
+	// Token, if non-empty, requires Authorization: Bearer <token> on /api/v1 when
+	// admin login is not configured. With admin login, Bearer remains supported for API clients.
 	Token string
+	// Auth configures optional admin username/password and session cookies.
+	Auth AuthConfig
 	// Logger receives request logs; nil uses slog.Default().
 	Logger *slog.Logger
 }
 
 // Server is the HTTP API for the Web UI control plane.
 type Server struct {
-	cfg Config
-	mux *http.ServeMux
+	cfg      Config
+	mux      *http.ServeMux
+	sessions *sessionManager
 }
 
 // TokenFromEnv returns the value of MASTER_AGENT_TOKEN (may be empty).
@@ -51,9 +54,12 @@ func New(cfg Config) *Server {
 		cfg.Logger = slog.Default()
 	}
 	s := &Server{
-		cfg: cfg,
-		mux: http.NewServeMux(),
+		cfg:      cfg,
+		mux:      http.NewServeMux(),
+		sessions: newSessionManager(cfg.Auth),
 	}
+	s.mux.HandleFunc("POST /api/v1/auth/login", s.handleLogin)
+	s.mux.HandleFunc("POST /api/v1/auth/logout", s.handleLogout)
 	s.mux.HandleFunc("GET /api/v1/status", s.handleStatus)
 	s.mux.HandleFunc("GET /api/v1/projects", s.handleListProjects)
 	s.mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)
@@ -88,7 +94,7 @@ func (s *Server) HandlerWithUI(ui http.Handler) http.Handler {
 }
 
 func (s *Server) wrapMiddleware(h http.Handler) http.Handler {
-	h = withAuth(s.cfg.Token, h)
+	h = withAuth(s.cfg.Auth, s.cfg.Token, s.sessions, h)
 	h = withLogging(s.cfg.Logger, h)
 	h = withRequestID(h)
 	return h

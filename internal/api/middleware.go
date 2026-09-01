@@ -57,11 +57,10 @@ func (r *statusRecorder) WriteHeader(code int) {
 	r.ResponseWriter.WriteHeader(code)
 }
 
-// withAuth rejects API requests without a valid Bearer token when token is non-empty.
-// Static UI assets are served without auth so the browser can load the token prompt.
-// When token is empty, all requests are allowed (trusted network / bind to loopback).
-func withAuth(token string, next http.Handler) http.Handler {
-	if token == "" {
+// withAuth protects /api/v1 when admin login or MASTER_AGENT_TOKEN is configured.
+// Static UI assets are served without auth so the browser can load the login page.
+func withAuth(auth AuthConfig, token string, sessions *sessionManager, next http.Handler) http.Handler {
+	if !authRequired(auth, token) {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -69,12 +68,15 @@ func withAuth(token string, next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		got := bearerToken(r.Header.Get("Authorization"))
-		if got == "" || got != token {
-			WriteError(w, http.StatusUnauthorized, "unauthorized")
+		if isAuthExemptPath(r.URL.Path, r.Method) {
+			next.ServeHTTP(w, r)
 			return
 		}
-		next.ServeHTTP(w, r)
+		if requestAuthenticated(r, auth, token, sessions) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		WriteError(w, http.StatusUnauthorized, "unauthorized")
 	})
 }
 

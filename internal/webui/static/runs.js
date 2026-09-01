@@ -1,30 +1,18 @@
 (function () {
   'use strict';
 
-  const TOKEN_KEY = 'master_agent_token';
+  const api = window.MAAuth.api;
+  const apiText = window.MAAuth.apiText;
 
   const $ = (sel) => document.querySelector(sel);
   const projectFilter = $('#project-filter');
   const statusFilter = $('#status-filter');
   const runsBody = $('#runs-body');
   const flash = $('#flash');
-  const authPanel = $('#auth-panel');
   const detailDialog = $('#run-detail-dialog');
 
   let projectsById = {};
   let tasksById = {};
-
-  function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY) || '';
-  }
-
-  function setToken(value) {
-    if (value) {
-      sessionStorage.setItem(TOKEN_KEY, value);
-    } else {
-      sessionStorage.removeItem(TOKEN_KEY);
-    }
-  }
 
   function showFlash(message, kind) {
     flash.textContent = message;
@@ -34,60 +22,6 @@
 
   function hideFlash() {
     flash.classList.add('hidden');
-  }
-
-  async function api(path, options) {
-    const opts = Object.assign({ headers: {} }, options || {});
-    const token = getToken();
-    if (token) {
-      opts.headers['Authorization'] = 'Bearer ' + token;
-    }
-    if (opts.body && typeof opts.body === 'object' && !(opts.body instanceof FormData)) {
-      opts.headers['Content-Type'] = 'application/json';
-      opts.body = JSON.stringify(opts.body);
-    }
-    const resp = await fetch('/api/v1' + path, opts);
-    let data = null;
-    const ct = resp.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      data = await resp.json();
-    }
-    if (resp.status === 401) {
-      authPanel.classList.remove('hidden');
-      throw new Error((data && data.error) || 'Unauthorized — enter API token above');
-    }
-    if (!resp.ok) {
-      throw new Error((data && data.error) || ('Request failed: ' + resp.status));
-    }
-    return data;
-  }
-
-  async function apiText(path) {
-    const opts = { headers: {} };
-    const token = getToken();
-    if (token) {
-      opts.headers['Authorization'] = 'Bearer ' + token;
-    }
-    const resp = await fetch('/api/v1' + path, opts);
-    if (resp.status === 401) {
-      authPanel.classList.remove('hidden');
-      let data = null;
-      const ct = resp.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        data = await resp.json();
-      }
-      throw new Error((data && data.error) || 'Unauthorized — enter API token above');
-    }
-    if (!resp.ok) {
-      let message = 'Request failed: ' + resp.status;
-      const ct = resp.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        const data = await resp.json();
-        if (data && data.error) message = data.error;
-      }
-      throw new Error(message);
-    }
-    return resp.text();
   }
 
   function escapeHtml(s) {
@@ -291,19 +225,6 @@
   $('#detail-close').addEventListener('click', function () {
     detailDialog.close();
   });
-
-  $('#token-save').addEventListener('click', async function () {
-    setToken($('#token-input').value.trim());
-    authPanel.classList.add('hidden');
-    try {
-      await loadProjects();
-      await loadRuns();
-    } catch (err) {
-      showFlash(err.message, 'error');
-    }
-  });
-
-  $('#token-input').value = getToken();
 
   (async function init() {
     try {
