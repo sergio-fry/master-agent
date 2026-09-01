@@ -217,3 +217,33 @@ func TestProjectsCreateDefaults(t *testing.T) {
 	assert.Equal(t, 22, created.SSHPort)
 	assert.True(t, created.Enabled)
 }
+
+func TestProjectsCRUDAfterV1Migration(t *testing.T) {
+	st := openStoreMigratedFromV1(t)
+	srv := New(Config{
+		Store:  st,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	createBody := map[string]any{
+		"name":            "migrated-db",
+		"path":            "/home/dev/app",
+		"ssh_host":        "worker",
+		"ssh_user":        "dev",
+		"ssh_private_key": store.TestSSHPrivateKey,
+	}
+	raw, err := json.Marshal(createBody)
+	require.NoError(t, err)
+
+	resp, err := http.Post(ts.URL+"/api/v1/projects", "application/json", bytes.NewReader(raw))
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusCreated, resp.StatusCode, "project create must work after v1→v2 migration")
+
+	listResp, err := http.Get(ts.URL + "/api/v1/projects")
+	require.NoError(t, err)
+	defer listResp.Body.Close()
+	require.Equal(t, http.StatusOK, listResp.StatusCode)
+}
