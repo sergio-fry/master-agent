@@ -398,6 +398,14 @@ input[type="file"] {
   font-size: 0.95rem;
 }
 
+.status-panel {
+  padding: 1rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
 .run-meta {
   display: grid;
   grid-template-columns: 7rem 1fr;

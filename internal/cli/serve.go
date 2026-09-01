@@ -31,7 +31,8 @@ func newServeCmd(opts Options, openStore func() (*store.Store, error)) *cobra.Co
 			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 
-			apiSrv := newAPIServer(s)
+			dbPath, _ := cmd.Root().PersistentFlags().GetString("db")
+			apiSrv := newAPIServer(s, dbPath)
 			printHTTPListening(opts.Stdout, addr)
 			err = startHTTPServer(ctx, addr, newHTTPHandler(apiSrv), opts.Stdout)
 			if err != nil && ctx.Err() != nil {

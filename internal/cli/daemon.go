@@ -45,7 +45,8 @@ func newDaemonCmd(opts Options, openStore func() (*store.Store, error)) *cobra.C
 
 			httpAddr := resolveHTTPAddr(httpAddrFlag)
 			if httpAddrFlag != "" || os.Getenv(envHTTPAddr) != "" {
-				apiSrv := newAPIServer(s)
+				dbPath, _ := cmd.Root().PersistentFlags().GetString("db")
+				apiSrv := newAPIServer(s, dbPath)
 				printHTTPListening(opts.Stdout, httpAddr)
 				go func() {
 					if err := startHTTPServer(ctx, httpAddr, newHTTPHandler(apiSrv), opts.Stdout); err != nil && ctx.Err() == nil {

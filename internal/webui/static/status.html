@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>master-agent — Status</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>master-agent</h1>
+    <nav>
+      <a href="/">Projects</a>
+      <a href="/tasks.html">Tasks</a>
+      <a href="/runs.html">Runs</a>
+      <span class="active">Status</span>
+    </nav>
+    <div class="header-actions">
+      <button type="button" id="btn-logout" class="link">Log out</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <h2>Status</h2>
+      <button type="button" id="btn-refresh" class="primary">Refresh</button>
+    </section>
+
+    <div id="flash" class="flash hidden" role="alert"></div>
+
+    <section class="status-panel">
+      <dl class="run-meta" id="status-summary">
+        <dt>HTTP API</dt>
+        <dd id="http-status" class="muted">Loading…</dd>
+        <dt>Database</dt>
+        <dd id="db-status" class="muted">Loading…</dd>
+        <dt>Database path</dt>
+        <dd id="db-path"><code class="muted">—</code></dd>
+        <dt>Active lock</dt>
+        <dd id="lock-status" class="muted">Loading…</dd>
+      </dl>
+    </section>
+
+    <section id="locks-section" class="hidden">
+      <h3>Active locks</h3>
+      <table id="locks-table">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th>Task</th>
+            <th>Run</th>
+            <th>Acquired</th>
+            <th>PID</th>
+          </tr>
+        </thead>
+        <tbody id="locks-body"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/auth.js"></script>
+  <script src="/status.js"></script>
+</body>
+</html>

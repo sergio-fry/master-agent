@@ -24,6 +24,8 @@ const EnvToken = "MASTER_AGENT_TOKEN"
 type Config struct {
 	// Store is the SQLite store; required for handlers that touch persistence.
 	Store *store.Store
+	// DBPath is the SQLite file path shown on GET /status (informational).
+	DBPath string
 	// Token, if non-empty, requires Authorization: Bearer <token> on /api/v1 when
 	// admin login is not configured. With admin login, Bearer remains supported for API clients.
 	Token string
@@ -95,8 +97,3 @@ func (s *Server) wrapMiddleware(h http.Handler) http.Handler {
 	return h
 }
 
-func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"ok":true}`))
-}

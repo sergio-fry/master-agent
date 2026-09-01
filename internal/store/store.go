@@ -57,6 +57,14 @@ func Open(path string) (*Store, error) {
 	return s, nil
 }
 
+// Ping verifies the database connection is alive.
+func (s *Store) Ping() error {
+	if s.db == nil {
+		return fmt.Errorf("database not open")
+	}
+	return s.db.Ping()
+}
+
 // Close closes the underlying database.
 func (s *Store) Close() error {
 	if s.db == nil {

@@ -48,6 +48,8 @@ func TestServerStartsWithTempDB(t *testing.T) {
 	var body map[string]any
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
 	assert.Equal(t, true, body["ok"])
+	assert.Equal(t, true, body["db_ok"])
+	assert.Equal(t, false, body["lock_active"])
 }
 
 func TestAuthRequiresBearerWhenTokenSet(t *testing.T) {

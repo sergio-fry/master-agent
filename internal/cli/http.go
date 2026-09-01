@@ -30,9 +30,10 @@ func resolveHTTPAddr(flagValue string) string {
 	return defaultHTTPAddr
 }
 
-func newAPIServer(s *store.Store) *api.Server {
+func newAPIServer(s *store.Store, dbPath string) *api.Server {
 	return api.New(api.Config{
 		Store:  s,
+		DBPath: dbPath,
 		Token:  api.TokenFromEnv(),
 		Auth:   api.AuthFromEnv(),
 		Logger: slog.Default(),
