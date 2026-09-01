@@ -58,6 +58,22 @@ func TestHandlerAppJSHasAPIClient(t *testing.T) {
 	assert.True(t, strings.Contains(s, "'/projects'"))
 	assert.True(t, strings.Contains(s, "MAAuth"))
 	assert.Contains(t, s, "ssh_private_key")
+	assert.Contains(t, s, "btn-test-ssh")
+	assert.Contains(t, s, "ssh/test")
+}
+
+func TestHandlerIndexHasSSHTestControl(t *testing.T) {
+	ts := httptest.NewServer(Handler())
+	t.Cleanup(ts.Close)
+
+	resp, err := http.Get(ts.URL + "/")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	s := string(body)
+	assert.Contains(t, s, "Test connection")
+	assert.Contains(t, s, "ssh-test-status")
 }
 
 func TestHandlerIndexHasInlineKeyField(t *testing.T) {

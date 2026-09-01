@@ -158,6 +158,32 @@ button.primary {
   color: #fff;
 }
 
+button.secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.ssh-test-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ssh-test-status {
+  font-size: 0.85rem;
+}
+
+.ssh-test-status.ok {
+  color: #2a7a3b;
+}
+
+.ssh-test-status.error {
+  color: var(--danger);
+}
+
 button.link {
   border: none;
   background: none;

@@ -74,6 +74,11 @@
         <p id="key-hint-create" class="hint">Paste the full private key body. It is stored in SQLite and never shown again after save.</p>
         <p id="key-hint-edit" class="hint hidden">Leave empty to keep the existing key. Paste new key material to replace it.</p>
 
+        <div class="ssh-test-row">
+          <button type="button" id="btn-test-ssh" class="secondary">Test connection</button>
+          <span id="ssh-test-status" class="ssh-test-status hidden" role="status"></span>
+        </div>
+
         <label class="checkbox">
           <input id="enabled" name="enabled" type="checkbox" checked>
           Enabled

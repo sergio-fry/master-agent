@@ -30,6 +30,75 @@
     formError.classList.remove('hidden');
   }
 
+  function clearSSHTestStatus() {
+    const el = $('#ssh-test-status');
+    el.textContent = '';
+    el.className = 'ssh-test-status hidden';
+  }
+
+  function showSSHTestStatus(message, kind) {
+    const el = $('#ssh-test-status');
+    el.textContent = message;
+    el.className = 'ssh-test-status ' + (kind || '');
+    el.classList.remove('hidden');
+  }
+
+  function projectFormBody() {
+    const body = {
+      path: $('#path').value.trim(),
+      ssh_host: $('#ssh_host').value.trim(),
+      ssh_user: $('#ssh_user').value.trim(),
+      ssh_port: parseInt($('#ssh_port').value, 10) || 22,
+    };
+    const keyValue = $('#ssh_private_key').value.trim();
+    if (keyValue) {
+      body.ssh_private_key = keyValue;
+    }
+    return body;
+  }
+
+  async function testSSHConnection() {
+    showFormError('');
+    clearSSHTestStatus();
+    const id = $('#project-id').value;
+    const body = projectFormBody();
+    if (!body.path || !body.ssh_host || !body.ssh_user) {
+      showSSHTestStatus('Fill path, SSH host, and SSH user before testing.', 'error');
+      return;
+    }
+    if (!id && !body.ssh_private_key) {
+      showSSHTestStatus('Paste the SSH private key before testing a new project.', 'error');
+      return;
+    }
+    const btn = $('#btn-test-ssh');
+    btn.disabled = true;
+    try {
+      let result;
+      if (id) {
+        result = await api('/projects/' + encodeURIComponent(id) + '/ssh/test', {
+          method: 'POST',
+          body: body,
+        });
+      } else {
+        if (!body.ssh_private_key) {
+          showSSHTestStatus('SSH private key is required for a new project.', 'error');
+          return;
+        }
+        result = await api('/ssh/test', { method: 'POST', body: body });
+      }
+      const fp = result.host_key_fingerprint || '';
+      const pinned = result.host_key_pinned ? 'Host key pinned.' : 'Connection OK.';
+      showSSHTestStatus(
+        pinned + (fp ? ' Fingerprint: ' + fp : ''),
+        'ok'
+      );
+    } catch (err) {
+      showSSHTestStatus(err.message || 'SSH test failed.', 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
   function sshSummary(p) {
     return p.ssh_user + '@' + p.ssh_host + ':' + p.ssh_port;
   }
@@ -97,6 +166,7 @@
     $('#ssh_private_key').required = true;
     $('#key-hint-create').classList.remove('hidden');
     $('#key-hint-edit').classList.add('hidden');
+    clearSSHTestStatus();
     showFormError('');
     dialog.showModal();
   }
@@ -113,6 +183,7 @@
     $('#ssh_private_key').required = false;
     $('#key-hint-create').classList.add('hidden');
     $('#key-hint-edit').classList.remove('hidden');
+    clearSSHTestStatus();
     showFormError('');
     dialog.showModal();
   }
@@ -184,6 +255,7 @@
 
   $('#btn-new').addEventListener('click', openCreateDialog);
   $('#btn-cancel').addEventListener('click', function () { dialog.close(); });
+  $('#btn-test-ssh').addEventListener('click', testSSHConnection);
   form.addEventListener('submit', saveProject);
 
   loadProjects();
