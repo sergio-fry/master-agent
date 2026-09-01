@@ -230,8 +230,80 @@ dialog {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0;
-  max-width: 32rem;
+  max-width: 36rem;
   width: calc(100% - 2rem);
+}
+
+#path-picker-dialog {
+  max-width: 28rem;
+}
+
+.path-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.75rem;
+}
+
+.path-input-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.path-input-wrap label {
+  margin-top: 0;
+}
+
+.path-browse-btn {
+  flex-shrink: 0;
+  margin-top: 1.35rem;
+}
+
+.path-picker-panel {
+  padding: 1.25rem;
+}
+
+.path-picker-panel h3 {
+  margin: 0 0 0.5rem;
+}
+
+.path-picker-current {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+}
+
+.path-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 14rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.path-picker-list li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  font: inherit;
+}
+
+.path-picker-list li:last-child button {
+  border-bottom: none;
+}
+
+.path-picker-list li button:hover {
+  background: var(--bg);
+}
+
+.path-picker-list .muted {
+  padding: 0.75rem;
+  display: block;
 }
 
 dialog::backdrop {
@@ -278,6 +350,8 @@ label {
 input[type="text"],
 input[type="password"],
 input[type="number"],
+#project-form input:not([type="checkbox"]):not([type="hidden"]):not([type="number"]),
+#task-form input:not([type="checkbox"]):not([type="hidden"]):not([type="number"]),
 textarea {
   width: 100%;
   margin-top: 0.25rem;

@@ -150,6 +150,11 @@ func (t *SSHTester) command(ctx context.Context, name string, arg ...string) *ex
 	return exec.CommandContext(ctx, name, arg...)
 }
 
+// ScanHostKey fetches the server host public key line via ssh-keyscan.
+func (t *SSHTester) ScanHostKey(ctx context.Context, project store.Project) (string, error) {
+	return t.scanHostKey(ctx, project)
+}
+
 func (t *SSHTester) scanHostKey(ctx context.Context, project store.Project) (string, error) {
 	port := project.SSHPort
 	if port == 0 {

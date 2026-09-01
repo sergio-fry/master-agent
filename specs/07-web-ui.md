@@ -42,7 +42,7 @@ REST JSON under `/api/v1`:
 | Area | Endpoints (sketch) |
 |------|-------------------|
 | Projects | `GET/POST /projects`, `GET/PATCH /projects/{id}`, `POST /projects/{id}/ssh/test` |
-| SSH test (draft) | `POST /ssh/test` — проверка полей до сохранения project |
+| SSH browse | `POST /projects/{id}/ssh/list-dirs`, `POST /ssh/list-dirs` — remote directory listing for path picker |
 | Keys | `POST /projects/{id}/key` (multipart); `GET` returns `{present: bool}` only |
 | Tasks | `GET/POST /projects/{id}/tasks`, `GET/PATCH /tasks/{id}` |
 | Runs | `GET /runs?project_id=&task_id=&status=`, `GET /runs/{id}`, `GET /runs/{id}/log` |

@@ -58,8 +58,8 @@ func TestHandlerAppJSHasAPIClient(t *testing.T) {
 	assert.True(t, strings.Contains(s, "'/projects'"))
 	assert.True(t, strings.Contains(s, "MAAuth"))
 	assert.Contains(t, s, "ssh_private_key")
-	assert.Contains(t, s, "btn-test-ssh")
-	assert.Contains(t, s, "ssh/test")
+	assert.Contains(t, s, "btn-browse-path")
+	assert.Contains(t, s, "list-dirs")
 }
 
 func TestHandlerIndexHasSSHTestControl(t *testing.T) {

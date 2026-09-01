@@ -37,6 +37,8 @@ type Config struct {
 	Logger *slog.Logger
 	// SSHTest overrides SSH connection testing (for unit tests). Nil uses runner.SSHTester.
 	SSHTest func(ctx context.Context, project store.Project) (runner.SSHTestResult, error)
+	// ListDirs overrides remote directory listing (for unit tests). Nil uses runner.SSHBrowser.
+	ListDirs func(ctx context.Context, project store.Project, path string) (runner.RemoteDirListing, error)
 }
 
 // Server is the HTTP API for the Web UI control plane.
@@ -69,7 +71,9 @@ func New(cfg Config) *Server {
 	s.mux.HandleFunc("GET /api/v1/projects/{id}", s.handleGetProject)
 	s.mux.HandleFunc("PATCH /api/v1/projects/{id}", s.handlePatchProject)
 	s.mux.HandleFunc("POST /api/v1/projects/{id}/ssh/test", s.handleProjectSSHTest)
+	s.mux.HandleFunc("POST /api/v1/projects/{id}/ssh/list-dirs", s.handleProjectListDirs)
 	s.mux.HandleFunc("POST /api/v1/ssh/test", s.handleDraftSSHTest)
+	s.mux.HandleFunc("POST /api/v1/ssh/list-dirs", s.handleDraftListDirs)
 	s.mux.HandleFunc("GET /api/v1/projects/{id}/tasks", s.handleListProjectTasks)
 	s.mux.HandleFunc("POST /api/v1/projects/{id}/tasks", s.handleCreateProjectTask)
 	s.mux.HandleFunc("GET /api/v1/tasks/{id}", s.handleGetTask)

@@ -257,6 +257,101 @@
   $('#btn-new').addEventListener('click', openCreateDialog);
   $('#btn-cancel').addEventListener('click', function () { dialog.close(); });
   $('#btn-test-ssh').addEventListener('click', testSSHConnection);
+
+  const pathPickerDialog = $('#path-picker-dialog');
+  let pathPickerCurrent = '';
+
+  function showPathPickerError(message) {
+    const el = $('#path-picker-error');
+    if (!message) {
+      el.classList.add('hidden');
+      el.textContent = '';
+      return;
+    }
+    el.textContent = message;
+    el.classList.remove('hidden');
+  }
+
+  async function loadPathPicker(dirPath) {
+    showPathPickerError('');
+    const list = $('#path-picker-list');
+    list.innerHTML = '<li class="muted">Loading…</li>';
+    const id = $('#project-id').value;
+    const body = projectFormBody();
+    if (!body.ssh_host || !body.ssh_user) {
+      showPathPickerError('Fill SSH host and user before browsing.');
+      list.innerHTML = '';
+      return;
+    }
+    if (!id && !body.ssh_private_key) {
+      showPathPickerError('Paste the SSH private key before browsing.');
+      list.innerHTML = '';
+      return;
+    }
+    if (dirPath) {
+      body.path = dirPath;
+    }
+    try {
+      const endpoint = id
+        ? '/projects/' + encodeURIComponent(id) + '/ssh/list-dirs'
+        : '/ssh/list-dirs';
+      const result = await api(endpoint, { method: 'POST', body: body });
+      pathPickerCurrent = result.path || '';
+      $('#path-picker-current').textContent = pathPickerCurrent || '—';
+      if (!result.entries || !result.entries.length) {
+        list.innerHTML = '<li class="muted">No subfolders.</li>';
+        return;
+      }
+      list.innerHTML = result.entries.map(function (entry) {
+        return (
+          '<li><button type="button" class="path-picker-entry" data-path="' +
+          escapeAttr(entry.path) + '">' + escapeHtml(entry.name) + '</button></li>'
+        );
+      }).join('');
+    } catch (err) {
+      list.innerHTML = '';
+      showPathPickerError(err.message || 'Failed to list remote folders.');
+    }
+  }
+
+  async function openPathPicker() {
+    pathPickerCurrent = $('#path').value.trim();
+    await loadPathPicker(pathPickerCurrent);
+    pathPickerDialog.showModal();
+  }
+
+  $('#btn-browse-path').addEventListener('click', openPathPicker);
+  $('#path-picker-cancel').addEventListener('click', function () { pathPickerDialog.close(); });
+  $('#path-picker-select').addEventListener('click', function () {
+    if (pathPickerCurrent) {
+      $('#path').value = pathPickerCurrent;
+    }
+    pathPickerDialog.close();
+  });
+  $('#path-picker-up').addEventListener('click', async function () {
+    const req = projectFormBody();
+    if (pathPickerCurrent) {
+      req.path = pathPickerCurrent;
+    }
+    try {
+      const id = $('#project-id').value;
+      const endpoint = id
+        ? '/projects/' + encodeURIComponent(id) + '/ssh/list-dirs'
+        : '/ssh/list-dirs';
+      const listing = await api(endpoint, { method: 'POST', body: req });
+      if (listing.parent) {
+        await loadPathPicker(listing.parent);
+      }
+    } catch (err) {
+      showPathPickerError(err.message);
+    }
+  });
+  $('#path-picker-list').addEventListener('click', function (ev) {
+    const btn = ev.target.closest('.path-picker-entry');
+    if (!btn) return;
+    loadPathPicker(btn.dataset.path);
+  });
+
   form.addEventListener('submit', saveProject);
 
   loadProjects();

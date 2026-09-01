@@ -50,15 +50,20 @@
         <input type="hidden" id="project-id">
 
         <label for="name">Name</label>
-        <input id="name" name="name" required>
+        <input id="name" name="name" type="text" required>
 
-        <label for="path">Remote path</label>
-        <input id="path" name="path" required placeholder="/home/user/project">
+        <div class="path-row">
+          <div class="path-input-wrap">
+            <label for="path">Remote path</label>
+            <input id="path" name="path" type="text" required placeholder="/home/user/project">
+          </div>
+          <button type="button" id="btn-browse-path" class="secondary path-browse-btn">Browse…</button>
+        </div>
 
         <div class="row">
           <div>
             <label for="ssh_host">SSH host</label>
-            <input id="ssh_host" name="ssh_host" required>
+            <input id="ssh_host" name="ssh_host" type="text" required>
           </div>
           <div>
             <label for="ssh_port">Port</label>
@@ -67,7 +72,7 @@
         </div>
 
         <label for="ssh_user">SSH user</label>
-        <input id="ssh_user" name="ssh_user" required>
+        <input id="ssh_user" name="ssh_user" type="text" required>
 
         <label for="ssh_private_key">SSH private key</label>
         <textarea id="ssh_private_key" name="ssh_private_key" rows="8" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
@@ -91,6 +96,20 @@
           <button type="submit" class="primary" id="btn-save">Save</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="path-picker-dialog">
+      <div class="path-picker-panel">
+        <h3>Browse remote folders</h3>
+        <p id="path-picker-current" class="muted path-picker-current"></p>
+        <div id="path-picker-error" class="form-error hidden"></div>
+        <ul id="path-picker-list" class="path-picker-list"></ul>
+        <div class="dialog-actions">
+          <button type="button" id="path-picker-up" class="secondary">Up</button>
+          <button type="button" id="path-picker-cancel">Cancel</button>
+          <button type="button" id="path-picker-select" class="primary">Select folder</button>
+        </div>
+      </div>
     </dialog>
   </main>
 
